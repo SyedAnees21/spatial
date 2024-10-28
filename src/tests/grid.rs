@@ -18,25 +18,25 @@ impl Boundary for Bounds {
 }
 
 #[derive(Debug)]
-struct Player {
+struct Player2D {
     id: u32,
-    position: [f32; 3],
+    position: [f32; 2],
 }
 
-impl Player {
-    fn new(id: u32, position: [f32; 3]) -> Self {
+impl Player2D {
+    fn new(id: u32, position: [f32; 2]) -> Self {
         Self { id, position }
     }
 }
 
-impl Entity for Player {
+impl Entity for Player2D {
     type ID = u32;
     fn id(&self) -> Self::ID {
         self.id
     }
 }
 
-impl Coordinate for Player {
+impl Coordinate for Player2D {
     type Item = f32;
     fn x(&self) -> Self::Item {
         self.position[0]
@@ -44,10 +44,6 @@ impl Coordinate for Player {
 
     fn y(&self) -> Self::Item {
         self.position[1]
-    }
-
-    fn z(&self) -> Self::Item {
-        self.position[2]
     }
 }
 
@@ -99,7 +95,7 @@ fn data_insertion_2d() {
         size: [100_f32, 100_f32, 0_f32],
     };
 
-    let mut hashgrid_2d = HashGrid::<f32, Player>::new([2, 2], 0, &bounds_2d, true);
+    let mut hashgrid_2d = HashGrid::<f32, Player2D>::new([2, 2], 0, &bounds_2d, true);
 
     // asserting the initialized grid parameters
     assert_eq!(hashgrid_2d.cell_size_x(), 50_f32);
@@ -110,23 +106,12 @@ fn data_insertion_2d() {
     assert_eq!(hashgrid_2d.bounds.max(), [50_f32, 50_f32, 0_f32,]);
     assert_eq!(hashgrid_2d.bounds.min(), [-50_f32, -50_f32, 0_f32,]);
 
-    let player1 = Player::new(0, [22.5, 30.0, 0.0]);
-    let player2 = Player::new(2, [15.5, 45.6, 0.0]);
+    let player1 = Player2D::new(0, [22.5, 30.0]);
+    let player2 = Player2D::new(2, [15.5, 45.6]);
 
     hashgrid_2d.insert(&player1);
     hashgrid_2d.insert(&player2);
 
-    let query = Query {
-        radius: 0.0,
-        ty: QueryType::Relevant,
-        coordinates: (player1.x(), player1.y(), player1.z()),
-    };
-
-    let res = hashgrid_2d.query(query);
-
     // uncomment the line to print the hashgrid
-    // println!("HashGrid = {:#?}", hashgrid_2d);
-
-    // Query Result
-    println!("{}", res)
+    println!("{}", hashgrid_2d);
 }

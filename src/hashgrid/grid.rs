@@ -1,8 +1,10 @@
+use core::fmt;
 use std::{
     collections::{
         hash_map::Entry::{Occupied, Vacant},
         HashMap,
     },
+    fmt::Display,
     hash::Hash,
 };
 
@@ -430,5 +432,30 @@ where
     /// Returns the total number of floors along the z-axis
     pub fn floors(&self) -> usize {
         self.params.cell_per_axis.floors
+    }
+}
+
+impl<'a, F, T, Hx> fmt::Display for HashGrid<'a, F, T, Hx>
+where
+    F: Float + FromPrimitive + ToPrimitive + Display,
+    Hx: PrimInt + FromPrimitive + ToPrimitive + Hash,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HashGrid \n[\n  Grids: {}\n  ", self.grids.len())?;
+        write!(
+            f,
+            "Parameters \n  [\n    floors: {}\n    floor-size: {}\n    cells-on-x: {}\n    cell-size-x: {}\n    cells-on-y: {}\n    cell-size-y: {}\n  ]\n  ",
+            self.floors(), self.floor_size(), self.xcells(), self.cell_size_x(), self.ycells(), self.cell_size_y()
+        )?;
+
+        let center = self.bounds.centre();
+        let size = self.bounds.size();
+
+        write!(
+            f,
+            "Boundary \n  [\n    Center: (x= {}, y= {}, z= {})\n    size-per-axis: ({}, {}, {})\n  ]\n]",
+            center[0], center[1], center[2], size[0], size[1], size[2]
+        )?;
+        Ok(())
     }
 }
