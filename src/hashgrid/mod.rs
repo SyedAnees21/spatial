@@ -1,10 +1,60 @@
 use core::fmt;
+use grid::DataRef;
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive, Unsigned, Zero};
 use std::{hash::Hash, ops::Div};
 
 pub use grid::HashGrid;
 
 mod grid;
+
+
+#[derive(Debug, Clone, Copy)]
+pub enum QueryType<Id> {
+    Find(Id),
+    Relevant,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Query<F, Id> {
+    pub radius: F,
+    pub ty: QueryType<Id>,
+    pub coordinates: (F, F, F),
+}
+
+impl<F, Id> Query<F, Id>
+where
+    F: Float + FromPrimitive + ToPrimitive,
+    Id: DataIndex,
+{
+    pub fn from(cords: (F, F, F), query_type: QueryType<Id>, radius: F) -> Self {
+        Self { radius, ty: query_type, coordinates: cords }
+    }
+
+    pub fn x(&self) -> F {
+        self.coordinates.0
+    }
+
+    pub fn y(&self) -> F {
+        self.coordinates.1
+    }
+
+    pub fn z(&self) -> F {
+        self.coordinates.2
+    }
+
+    pub fn radius(&self) -> F {
+        self.radius
+    }
+    pub fn query_type(&self) -> QueryType<Id> {
+        self.ty
+    }
+}
+
+#[derive(Debug)]
+pub struct QueryResult<'a, F, Id, T> {
+    query: Query<F, Id>,
+    data: Vec<DataRef<'a, T>>,
+}
 
 pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
 

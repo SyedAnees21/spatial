@@ -8,7 +8,7 @@ use std::{
 
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive};
 
-use super::{Boundary, Coordinate, Entity, HashIndex};
+use super::{Boundary, Coordinate, DataIndex, Entity, HashIndex, Query, QueryResult, QueryType};
 
 pub type Grid<K, V> = HashMap<K, V>;
 pub type Floors<T> = Vec<T>;
@@ -21,6 +21,7 @@ pub type DefaultHx = u64;
 //     pub index: Dx,
 //     pub refer: DataRef<'a, T>
 // }
+
 
 #[derive(Debug)]
 pub struct CellsPerAxis {
@@ -162,7 +163,7 @@ where
 
     pub fn insert(&mut self, entity: DataRef<'a, T>)
     where
-        T: Coordinate<Item = F> + Entity<ID = F>,
+        T: Coordinate<Item = F> + Entity,
     {
         // Getting the grid's extreme boundary parameters to apply the boundary
         // limits to the calculated cell cords if necessary
@@ -219,27 +220,28 @@ where
         }
     }
 
-    pub fn query(&self, entity: DataRef<'a, T>, radius: F) -> Vec<DataRef<'a, T>>
+    pub fn query<Id>(&self, query: Query<F, Id>) -> QueryResult<'a, F, Id, T>
     where
-        T: Coordinate<Item = F> + Entity<ID = F>,
+        Id: DataIndex,
+        T: Coordinate<Item = F> + Entity<ID = Id>,
     {
-        let radius_x = (F::from_u32(self.xcells()).unwrap() * radius)
+        let radius_x = (F::from_u32(self.xcells()).unwrap() * query.radius())
             .max(F::one())
             .ceil()
             .to_i32()
             .unwrap();
-        let radius_y = (F::from_u32(self.ycells()).unwrap() * radius)
+        let radius_y = (F::from_u32(self.ycells()).unwrap() * query.radius())
             .max(F::one())
             .ceil()
             .to_i32()
             .unwrap();
-        let radius_f = (F::from_usize(self.floors()).unwrap() * radius)
+        let radius_f = (F::from_usize(self.floors()).unwrap() * query.radius())
             .max(F::one())
             .ceil()
             .to_i32()
             .unwrap();
 
-        let (cx, cy, floor) = self.get_cell_coordinates((entity.x(), entity.y(), entity.z()));
+        let (cx, cy, floor) = self.get_cell_coordinates((query.x(), query.y(), query.z()));
 
         let base_cx = cx as i32;
         let base_cy = cy as i32;
@@ -262,15 +264,32 @@ where
             })
             .map(|(dx, dy, df)| (self.key(dx, dy), df));
 
-        let mut relevant_data = Vec::new();
+        let mut result = QueryResult {
+            query,
+            data: Vec::new(),
+        };
 
-        for (hashindex, floor) in relevant_indices {
-            if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
-                relevant_data.copy_from_slice(d_list);
+        match query.query_type() {
+            QueryType::Find(id) => {
+                for (hashindex, floor) in relevant_indices {
+                    if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
+                        if let Some(&entity) = d_list.iter().find(|&&d| d.id() == id) {
+                            result.data.push(entity);
+                            break;
+                        }
+                    }
+                }
+            }
+            QueryType::Relevant => {
+                for (hashindex, floor) in relevant_indices {
+                    if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
+                        result.data.copy_from_slice(d_list);
+                    }
+                }
             }
         }
 
-        relevant_data
+        result
     }
 
     /// Inserts the references to individual data from the list of data into the relevant cells of the grid by finding
@@ -286,7 +305,7 @@ where
     /// the unique `HashIndex`.
     pub fn update(&mut self, data: &'a [T])
     where
-        T: Coordinate<Item = F> + Entity<ID = F>,
+        T: Coordinate<Item = F> + Entity,
     {
         // Getting the grid's extreme boundary parameters to apply the boundary
         // limits to the calculated cell cords if necessary
