@@ -1,7 +1,7 @@
 use core::fmt;
 use grid::DataRef;
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive, Unsigned, Zero};
-use std::{hash::Hash, ops::Div};
+use std::{fmt::{write, Debug, Display}, hash::Hash, ops::Div};
 
 pub use grid::HashGrid;
 
@@ -14,11 +14,39 @@ pub enum QueryType<Id> {
     Relevant,
 }
 
+impl<Id: Display> fmt::Display for QueryType<Id> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryType::Find(id) => write!(f, "Find({})", id),
+            QueryType::Relevant => write!(f, "Relevant")
+        }
+        
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Query<F, Id> {
     pub radius: F,
     pub ty: QueryType<Id>,
     pub coordinates: (F, F, F),
+}
+
+impl<F, Id> fmt::Display for Query<F, Id> 
+where 
+    F: Float + FromPrimitive + ToPrimitive + Display,
+    Id: DataIndex + Display
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Query [\n  Type: {}\n  Radius: {}\n  Coordinates: (x= {}, y= {}, z= {})\n]",
+            self.ty,
+            self.radius,
+            self.coordinates.0,
+            self.coordinates.1,
+            self.coordinates.2,
+        )
+    }
 }
 
 impl<F, Id> Query<F, Id>
@@ -54,6 +82,31 @@ where
 pub struct QueryResult<'a, F, Id, T> {
     query: Query<F, Id>,
     data: Vec<DataRef<'a, T>>,
+}
+
+impl<'a, F, Id, T> QueryResult<'a, F, Id, T>
+where
+    F: Float + FromPrimitive + ToPrimitive,
+    Id: DataIndex,
+{
+    pub fn query(&self) -> Query<F, Id> {
+        self.query
+    }
+
+    pub fn data(&self) -> &[DataRef<'a, T>] {
+        &self.data
+    }
+}
+
+impl<'a, F, Id, T> fmt::Display for QueryResult<'a, F, Id, T>
+where
+    F: Float + FromPrimitive + ToPrimitive + Display,
+    Id: DataIndex + Display,
+    T: Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"QueryResult [\n  {}\n  Data: {:?}\n]", self.query(), self.data())
+    }
 }
 
 pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);

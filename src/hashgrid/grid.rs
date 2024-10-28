@@ -154,7 +154,7 @@ where
         };
 
         Self {
-            grids: Floors::with_capacity(floors),
+            grids: vec![Grid::new(); floors],
             params,
             bounds,
             wrap,
@@ -250,7 +250,7 @@ where
         let range_x = (base_cx - radius_x).max(0)..=(base_cx + radius_x).min(self.xcells() as i32);
         let range_y = (base_cy - radius_y).max(0)..=(base_cy + radius_y).min(self.ycells() as i32);
         let range_z =
-            (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32);
+            (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32 -1);
 
         let relevant_indices = range_x
             .clone()
@@ -283,7 +283,7 @@ where
             QueryType::Relevant => {
                 for (hashindex, floor) in relevant_indices {
                     if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
-                        result.data.copy_from_slice(d_list);
+                        result.data.extend_from_slice(d_list);
                     }
                 }
             }
@@ -374,8 +374,8 @@ where
 
         // Normalizing the x and y component according to cell size to find the
         // cell coordinates inside the grid
-        let cx = (x / self.cell_size_x()).floor().to_u32().unwrap();
-        let cy = (y / self.cell_size_y()).floor().to_u32().unwrap();
+        let cx = (x / self.cell_size_x()).floor().abs().to_u32().unwrap();
+        let cy = (y / self.cell_size_y()).floor().abs().to_u32().unwrap();
 
         // Getting the floor index from the z component
         let floor = (z / self.floor_size()).floor().to_usize().unwrap();
