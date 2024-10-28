@@ -1,12 +1,15 @@
 use core::fmt;
 use grid::DataRef;
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive, Unsigned, Zero};
-use std::{fmt::{write, Debug, Display}, hash::Hash, ops::Div};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    ops::Div,
+};
 
 pub use grid::HashGrid;
 
 mod grid;
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum QueryType<Id> {
@@ -18,9 +21,8 @@ impl<Id: Display> fmt::Display for QueryType<Id> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QueryType::Find(id) => write!(f, "Find({})", id),
-            QueryType::Relevant => write!(f, "Relevant")
+            QueryType::Relevant => write!(f, "Relevant"),
         }
-        
     }
 }
 
@@ -31,20 +33,16 @@ pub struct Query<F, Id> {
     pub coordinates: (F, F, F),
 }
 
-impl<F, Id> fmt::Display for Query<F, Id> 
-where 
+impl<F, Id> fmt::Display for Query<F, Id>
+where
     F: Float + FromPrimitive + ToPrimitive + Display,
-    Id: DataIndex + Display
+    Id: DataIndex + Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Query [\n  Type: {}\n  Radius: {}\n  Coordinates: (x= {}, y= {}, z= {})\n]",
-            self.ty,
-            self.radius,
-            self.coordinates.0,
-            self.coordinates.1,
-            self.coordinates.2,
+            self.ty, self.radius, self.coordinates.0, self.coordinates.1, self.coordinates.2,
         )
     }
 }
@@ -55,7 +53,11 @@ where
     Id: DataIndex,
 {
     pub fn from(cords: (F, F, F), query_type: QueryType<Id>, radius: F) -> Self {
-        Self { radius, ty: query_type, coordinates: cords }
+        Self {
+            radius,
+            ty: query_type,
+            coordinates: cords,
+        }
     }
 
     pub fn x(&self) -> F {
@@ -102,10 +104,15 @@ impl<'a, F, Id, T> fmt::Display for QueryResult<'a, F, Id, T>
 where
     F: Float + FromPrimitive + ToPrimitive + Display,
     Id: DataIndex + Display,
-    T: Debug
+    T: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"QueryResult [\n  {}\n  Data: {:?}\n]", self.query(), self.data())
+        write!(
+            f,
+            "QueryResult [\n  {}\n  Data: {:?}\n]",
+            self.query(),
+            self.data()
+        )
     }
 }
 

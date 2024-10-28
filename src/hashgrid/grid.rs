@@ -22,7 +22,6 @@ pub type DefaultHx = u64;
 //     pub refer: DataRef<'a, T>
 // }
 
-
 #[derive(Debug)]
 pub struct CellsPerAxis {
     xcells: u32,
@@ -250,7 +249,7 @@ where
         let range_x = (base_cx - radius_x).max(0)..=(base_cx + radius_x).min(self.xcells() as i32);
         let range_y = (base_cy - radius_y).max(0)..=(base_cy + radius_y).min(self.ycells() as i32);
         let range_z =
-            (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32 -1);
+            (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32 - 1);
 
         let relevant_indices = range_x
             .clone()

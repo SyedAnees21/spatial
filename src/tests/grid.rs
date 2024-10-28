@@ -20,19 +20,16 @@ impl Boundary for Bounds {
 #[derive(Debug)]
 struct Player {
     id: u32,
-    position: [f32;3]
+    position: [f32; 3],
 }
 
 impl Player {
-    fn new(id: u32, position: [f32;3]) -> Self {
-        Self {
-            id,
-            position
-        }
+    fn new(id: u32, position: [f32; 3]) -> Self {
+        Self { id, position }
     }
 }
 
-impl Entity for Player  {
+impl Entity for Player {
     type ID = u32;
     fn id(&self) -> Self::ID {
         self.id
@@ -113,8 +110,8 @@ fn data_insertion_2d() {
     assert_eq!(hashgrid_2d.bounds.max(), [50_f32, 50_f32, 0_f32,]);
     assert_eq!(hashgrid_2d.bounds.min(), [-50_f32, -50_f32, 0_f32,]);
 
-    let player1 = Player::new(0, [22.5,30.0,0.0]);
-    let player2 = Player::new(2, [15.5,45.6,0.0]);
+    let player1 = Player::new(0, [22.5, 30.0, 0.0]);
+    let player2 = Player::new(2, [15.5, 45.6, 0.0]);
 
     hashgrid_2d.insert(&player1);
     hashgrid_2d.insert(&player2);
@@ -122,7 +119,7 @@ fn data_insertion_2d() {
     let query = Query {
         radius: 0.0,
         ty: QueryType::Relevant,
-        coordinates: (player1.x(), player1.y(), player1.z())
+        coordinates: (player1.x(), player1.y(), player1.z()),
     };
 
     let res = hashgrid_2d.query(query);
@@ -132,5 +129,4 @@ fn data_insertion_2d() {
 
     // Query Result
     println!("{}", res)
-
 }
