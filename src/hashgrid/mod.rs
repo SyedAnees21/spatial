@@ -245,6 +245,12 @@ where
     }
 }
 
+/// QueryResult is the return type for [`Query`]. When we query the hashgrid, hashgrid returns
+/// a response in `QueryResult`.
+/// 
+/// It contains the original query made to hashgrid, and the list of immutable references to the data
+/// collected as the response. To access the data isnside the QueryResult, use method [`QueryResult::data`]
+/// and to see the original query use [`QueryResult::query`]
 #[derive(Debug)]
 pub struct QueryResult<'a, F, Id, T> {
     query: Query<F, Id>,
@@ -281,6 +287,44 @@ where
     }
 }
 
+/// Type used as unique cell indices or the cell hash for identifying the grid cell
+/// to insert or retreive the data.
+/// 
+/// `HashIndex` is generic over the type to be used as hash index and is passed through
+/// the `HashGrid` initialization. If there is no type passed for the hashindex, then
+/// it defaults to the type `u64`
+/// 
+/// # Example
+/// 
+/// This is how we can pass the hashindex type at the time of [`HashGrid`] initialization
+/// 
+/// ```rust
+/// # use spatial::hashgrid::{HashGrid, Boundary};
+/// # struct Bounds {
+/// #     center: (f32,f32,f32),
+/// #     size: (f32,f32,f32),
+/// # }
+/// #
+/// # impl Boundary for Bounds {
+/// #     type Item = f32;
+/// #     
+/// #     fn centre(&self) -> [Self::Item; 3] {
+/// #         [self.center.0, self.center.1, self.center.2]
+/// #     }
+/// #     
+/// #     fn size(&self) -> [Self::Item; 3] {
+/// #         [self.size.0, self.size.1, self.size.2]
+/// #     }
+/// # }
+/// # let boundary = Bounds {
+/// #     center: (0.0, 0.0, 0.0),
+/// #     size: (100.0, 100.0, 100.0)
+/// # };
+/// // Here we are initializing the HashGrid with `f32` as bas float type
+/// // and passing no type for the data to the hashgrid and the `u32` as the
+/// // HashIndex type
+/// let hashgrid = HashGrid::<f32,(),u32>::new([2,2], 2, &boundary, false);
+/// ```
 pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
 
 impl<T> HashIndex<T>
@@ -302,17 +346,33 @@ where
     }
 }
 
+/// `Entity` trait obligates the data object to have a unique id
+/// 
+/// This is a trait bound imposed by the hashgrid to must implement for data type for which
+/// the hashgrid is being created.
 pub trait Entity {
     type ID: DataIndex;
 
+    /// Mendatory method to return the unique ID value of the data type
     fn id(&self) -> Self::ID;
 }
 
+/// `Coordinate` trait obligates the data object to have spatial coordinates components. This
+/// trait can be implemented on the 2D object types as well.
+/// 
+/// This is a trait bound imposed by the hashgrid to must implement for data type for which
+/// the hashgrid is being created.
 pub trait Coordinate {
     type Item: Float;
 
+    /// Mendatory method to return the x coordinate value of the data type
     fn x(&self) -> Self::Item;
+
+    /// Mendatory method to return the y coordinate value of the data type
     fn y(&self) -> Self::Item;
+
+    // Optional method to return the z coordinate value of the data type if
+    /// the type is 3D
     fn z(&self) -> Self::Item {
         Zero::zero()
     }
