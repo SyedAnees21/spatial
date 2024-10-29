@@ -10,70 +10,29 @@ use std::{
 
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive};
 
-use super::{Boundary, Coordinate, DataIndex, Entity, HashIndex, Query, QueryResult, QueryType};
+use super::{
+    Boundary, CellSizes, CellsPerAxis, Coordinate, DataIndex, Entity, GridBoundary, GridParameters,
+    HashIndex, Query, QueryResult, QueryType,
+};
 
+/// Grid is an alias for HashMaps
+///
+/// Its a wrapper around the core HashMap type and inherets all the functionalities of a HashMap
 pub type Grid<K, V> = HashMap<K, V>;
+
+/// Floors is an alias for vec type
+///
+/// Its a wrapper around the vec type and stores the list of the grids defined by the total number of floors
 pub type Floors<T> = Vec<T>;
+
+/// DataRef type defines the generic type parameter for the [`HashGrid`]
+///
+/// DataRef is actually the immutable reference to the data which is stored and managed in grid and must live
+/// as long as the grid lives
 pub type DataRef<'a, T> = &'a T;
 
+/// Type alias for default type used by the Hashgrid for hash index
 pub type DefaultHx = u64;
-// pub type DefaultDx = usize;
-
-// pub struct Data<'a, T, Dx = DefaultDx> {
-//     pub index: Dx,
-//     pub refer: DataRef<'a, T>
-// }
-
-#[derive(Debug)]
-pub struct CellsPerAxis {
-    xcells: u32,
-    ycells: u32,
-    floors: usize,
-}
-
-impl CellsPerAxis {
-    pub fn from(cells: &[u32], floors: usize) -> Self {
-        assert!(
-            cells.len() == 2,
-            "Invalid components, expected 2 components for cells per axis"
-        );
-        Self {
-            xcells: cells[0],
-            ycells: cells[1],
-            floors,
-        }
-    }
-}
-#[derive(Debug)]
-pub struct CellSizes<F> {
-    x_size: F,
-    y_size: F,
-    floor_size: F,
-}
-
-#[derive(Debug)]
-pub struct GridBoundary<F> {
-    pub center: [F; 3],
-    pub size: [F; 3],
-}
-
-impl<F: Float + FromPrimitive + ToPrimitive> Boundary for GridBoundary<F> {
-    type Item = F;
-
-    fn centre(&self) -> [Self::Item; 3] {
-        self.center
-    }
-
-    fn size(&self) -> [Self::Item; 3] {
-        self.size
-    }
-}
-
-#[derive(Debug)]
-pub struct GridParameters<F> {
-    pub cell_per_axis: CellsPerAxis,
-    pub cell_sizes: CellSizes<F>,
-}
 
 /// # HashGrid
 ///
@@ -85,6 +44,7 @@ pub struct GridParameters<F> {
 /// * `F (Float type):` Defines the base float type such as `f32` or `f64` for spatial components (x , y, z) and calculations
 /// * `T (generic data type):` Defines the data type to insert into the grid, data mus live as long as the grid lives`
 /// * `Hx (HashIndex type):` Defines the type to be used for hashes for data search in grid, default type for `Hx` is `u64`
+///
 #[derive(Debug)]
 pub struct HashGrid<'a, F, T, Hx = DefaultHx> {
     pub grids: Floors<Grid<Hx, Vec<DataRef<'a, T>>>>,

@@ -11,6 +11,58 @@ pub use grid::HashGrid;
 
 mod grid;
 
+#[derive(Debug)]
+pub struct CellsPerAxis {
+    xcells: u32,
+    ycells: u32,
+    floors: usize,
+}
+
+impl CellsPerAxis {
+    pub fn from(cells: &[u32], floors: usize) -> Self {
+        assert!(
+            cells.len() == 2,
+            "Invalid components, expected 2 components for cells per axis"
+        );
+        Self {
+            xcells: cells[0],
+            ycells: cells[1],
+            floors,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CellSizes<F> {
+    x_size: F,
+    y_size: F,
+    floor_size: F,
+}
+
+#[derive(Debug)]
+pub struct GridBoundary<F> {
+    pub center: [F; 3],
+    pub size: [F; 3],
+}
+
+impl<F: Float + FromPrimitive + ToPrimitive> Boundary for GridBoundary<F> {
+    type Item = F;
+
+    fn centre(&self) -> [Self::Item; 3] {
+        self.center
+    }
+
+    fn size(&self) -> [Self::Item; 3] {
+        self.size
+    }
+}
+
+#[derive(Debug)]
+pub struct GridParameters<F> {
+    pub cell_per_axis: CellsPerAxis,
+    pub cell_sizes: CellSizes<F>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum QueryType<Id> {
     Find(Id),
@@ -201,6 +253,13 @@ pub trait Boundary {
         ]
     }
 }
+
+// pub type DefaultDx = usize;
+
+// pub struct Data<'a, T, Dx = DefaultDx> {
+//     pub index: Dx,
+//     pub refer: DataRef<'a, T>
+// }
 
 pub trait DataIndex: Copy + Default + Ord + fmt::Debug + 'static {}
 
