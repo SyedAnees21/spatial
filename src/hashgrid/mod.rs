@@ -11,6 +11,10 @@ pub use grid::HashGrid;
 
 mod grid;
 
+/// ### Cells per Axis
+///
+/// Stores the total number of cells on each axis defined by the user at the time of
+/// grid construction
 #[derive(Debug)]
 pub struct CellsPerAxis {
     xcells: u32,
@@ -32,6 +36,10 @@ impl CellsPerAxis {
     }
 }
 
+/// ### Cell Sizes
+///
+/// Holds the cell size for every individual cell on each axis, These sizes are calculated
+/// during the grid initialization depending upon the [`CellsPerAxis`] and grid bounds
 #[derive(Debug)]
 pub struct CellSizes<F> {
     x_size: F,
@@ -39,6 +47,10 @@ pub struct CellSizes<F> {
     floor_size: F,
 }
 
+/// ### Grid Boundary
+///
+/// Defines the dimensions of bounding `rectangle(2D)`/`box(3D)` for the grid, which acts as
+/// the grid boundary. This type implements the [`Boundary`] trait
 #[derive(Debug)]
 pub struct GridBoundary<F> {
     pub center: [F; 3],
@@ -57,12 +69,20 @@ impl<F: Float + FromPrimitive + ToPrimitive> Boundary for GridBoundary<F> {
     }
 }
 
+/// Stores the grid information regarding the cell sizes and number of cells per axis
 #[derive(Debug)]
 pub struct GridParameters<F> {
     pub cell_per_axis: CellsPerAxis,
     pub cell_sizes: CellSizes<F>,
 }
 
+/// This enum defines the type of query to be made to the [`HashGrid`]. It specifies
+/// the following two basic queries:
+///
+/// * `Find:` It tells the hashgrid to find the data which matches the `Id` parameter in the find query
+/// * `Relevant:` Asks the hashgrid to return all th relevant data around the query point of interest within a radius
+///
+/// `QueryType` is one of the major constituent of the main [`Query`]
 #[derive(Debug, Clone, Copy)]
 pub enum QueryType<Id> {
     Find(Id),
@@ -78,6 +98,99 @@ impl<Id: Display> fmt::Display for QueryType<Id> {
     }
 }
 
+/// Used for querying the [`HashGrid`].
+///
+/// Query provides the parameters to inquire the hashgrid flexibly. It parameterized over:
+///
+/// * `F (base float type):`Float type which is being used in the hashgrid
+/// * `Id (base integer type)`: Integer type use for pattern matching to find the data in the hashgrid
+///
+/// `Id` type implements [`DataIndex`] trait, moreover `F` and `Id` are infered from the grid generics at
+/// the time of hashgrid initialization.
+///
+/// # Examples
+///
+/// Here is how we can use the `Query` to query the hashgrid:
+///
+/// ```rust
+/// use spatial::hashgrid::{HashGrid, Boundary, Coordinate, Entity, Query, QueryType};
+/// # struct Bounds {
+/// #     center: (f32,f32,f32),
+/// #     size: (f32,f32,f32),
+/// # }
+/// #
+/// # impl Boundary for Bounds {
+/// #     type Item = f32;
+/// #     
+/// #     fn centre(&self) -> [Self::Item; 3] {
+/// #         [self.center.0, self.center.1, self.center.2]
+/// #     }
+/// #     
+/// #     fn size(&self) -> [Self::Item; 3] {
+/// #         [self.size.0, self.size.1, self.size.2]
+/// #     }
+/// # }
+/// # #[derive(Debug, PartialEq)]
+/// # struct Object {
+/// #     id: u32,
+/// #     position: (f32,f32),
+/// # }
+/// #
+/// # impl Entity for Object {
+/// #     type ID = u32;
+/// #     fn id(&self) -> Self::ID {
+/// #         self.id
+/// #     }
+/// # }
+/// #     
+/// #     impl Coordinate for Object {
+/// #     type Item = f32;
+/// #     fn x(&self) -> Self::Item {
+/// #         self.position.0
+/// #     }
+/// #
+/// #     fn y(&self) -> Self::Item {
+/// #         self.position.1
+/// #     }
+/// # }
+///
+/// // Assuming that the bounds implements HashGrid::Boundary trait
+/// let bounds = Bounds {
+///     center: (0.0, 0.0, 0.0),
+///     size: (100.0, 100.0, 100.0)
+/// };
+///
+/// // Creating the Hashgrid with f32 as the base float and object as the base data type
+/// // Object type must implements the HashGrid::{Entity, Coordinate} traits
+/// let mut hashgrid = HashGrid::<f32, Object>::new([2,2], 0, &bounds, false);
+///
+/// // Creating two objects at different locations
+/// let obj1 = Object {
+///     id: 0,
+///     position: (22.0, 30.0)
+/// };
+///
+/// let obj2 = Object {
+///     id: 0,
+///     position: (15.0, 45.0)
+/// };
+///
+/// // Inserting the objects into the hashgrid
+/// hashgrid.insert(&obj1);
+/// hashgrid.insert(&obj2);
+///
+/// // Creating a query to query the hash grid for relevant data within a single cell
+/// // this is defined by the radius = 0, at some location define by the query coordinates
+/// let query = Query::from((25., 25., 0.), QueryType::Relevant, 0.0);
+///
+/// // Now querying the hashgrid
+/// let res = hashgrid.query(query);
+///
+/// // We must get the two objects in the query response from the grid
+/// assert_eq!(res.data(), &[&obj1, &obj2])
+/// ```
+///
+/// Querying the hashgrid returns the [`QueryResult`] as response.
 #[derive(Debug, Clone, Copy)]
 pub struct Query<F, Id> {
     pub radius: F,

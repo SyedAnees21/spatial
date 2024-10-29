@@ -17,7 +17,7 @@ impl Boundary for Bounds {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 struct Player2D {
     id: u32,
     position: [f32; 2],
@@ -66,7 +66,7 @@ fn grid_2d_3d_initialization() {
     assert_eq!(hashgrid_3d.bounds.min(), [-500_f32; 3]);
 
     // uncomment the line to print the hashgrid
-    println!("HashGrid = {:#?}", hashgrid_3d);
+    // println!("{hashgrid_3d}");
 
     let bounds_2d = Bounds {
         centre: [0_f32; 3],
@@ -85,7 +85,7 @@ fn grid_2d_3d_initialization() {
     assert_eq!(hashgrid_2d.bounds.min(), [-500_f32, -500_f32, 0_f32,]);
 
     // uncomment the line to print the hashgrid
-    // println!("HashGrid = {:#?}", hashgrid_2d);
+    // println!("{hashgrid_2d}");
 }
 
 #[test]
@@ -113,5 +113,15 @@ fn data_insertion_2d() {
     hashgrid_2d.insert(&player2);
 
     // uncomment the line to print the hashgrid
-    println!("{}", hashgrid_2d);
+    println!("{hashgrid_2d}");
+
+    let query = Query {
+        coordinates: (10.0, 10.0, 0.0),
+        ty: QueryType::Relevant,
+        radius: 0.0,
+    };
+
+    let res = hashgrid_2d.query(query);
+
+    println!("{res}");
 }

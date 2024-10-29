@@ -404,7 +404,7 @@ where
         write!(f, "HashGrid \n[\n  Grids: {}\n  ", self.grids.len())?;
         write!(
             f,
-            "Parameters \n  [\n    floors: {}\n    floor-size: {}\n    cells-on-x: {}\n    cell-size-x: {}\n    cells-on-y: {}\n    cell-size-y: {}\n  ]\n  ",
+            "Grid Parameters \n  [\n    floors: {}\n    floor-size: {}\n    cells-on-x: {}\n    cell-size-x: {}\n    cells-on-y: {}\n    cell-size-y: {}\n  ]\n  ",
             self.floors(), self.floor_size(), self.xcells(), self.cell_size_x(), self.ycells(), self.cell_size_y()
         )?;
 
@@ -413,7 +413,7 @@ where
 
         write!(
             f,
-            "Boundary \n  [\n    Center: (x= {}, y= {}, z= {})\n    size-per-axis: ({}, {}, {})\n  ]\n]",
+            "Grid Boundary \n  [\n    Center: (x= {}, y= {}, z= {})\n    size-per-axis: ({}, {}, {})\n  ]\n]",
             center[0], center[1], center[2], size[0], size[1], size[2]
         )?;
         Ok(())

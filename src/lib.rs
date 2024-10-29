@@ -1,4 +1,4 @@
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
 
-mod hashgrid;
+pub mod hashgrid;
 mod tests;
