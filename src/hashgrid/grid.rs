@@ -6,6 +6,7 @@ use std::{
     },
     fmt::Display,
     hash::Hash,
+    marker::PhantomData,
 };
 
 use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive};
@@ -33,6 +34,7 @@ pub type DataRef<'a, T> = &'a T;
 
 /// Type alias for default type used by the Hashgrid for hash index
 pub type DefaultHx = u64;
+pub type DefaultDx = u32;
 
 /// # HashGrid
 ///
@@ -46,17 +48,19 @@ pub type DefaultHx = u64;
 /// * `Hx (HashIndex type):` Defines the type to be used for hashes for data search in grid, default type for `Hx` is `u64`
 ///
 #[derive(Debug)]
-pub struct HashGrid<'a, F, T, Hx = DefaultHx> {
+pub struct HashGrid<'a, F, T, Hx = DefaultHx, Dx = DefaultDx> {
     pub grids: Floors<Grid<Hx, Vec<DataRef<'a, T>>>>,
     pub params: GridParameters<F>,
     pub bounds: GridBoundary<F>,
     pub wrap: bool,
+    pub phantom: PhantomData<Dx>,
 }
 
-impl<'a, F, T, Hx> HashGrid<'a, F, T, Hx>
+impl<'a, F, T, Hx, Dx> HashGrid<'a, F, T, Hx, Dx>
 where
     F: Float + FromPrimitive + ToPrimitive,
     Hx: PrimInt + FromPrimitive + ToPrimitive + Hash,
+    Dx: DataIndex,
 {
     /// Creates a new instance of [`HashGrid`] according to the number of cells and the bounds
     /// defined as the parameters.
@@ -71,7 +75,7 @@ where
     /// or [`HashGrid::insert`] methods to insert the data into the grid according the individual coordinates of the data.
     pub fn new<B>(cells: [u32; 2], floors: usize, bounds: &B, wrap: bool) -> Self
     where
-        B: Boundary<Item = F>,
+        B: Boundary<F>,
     {
         // Identifying the max number of floors to initialize
         // the grids at each floor
@@ -84,9 +88,9 @@ where
         let z_floors_f = F::from(floors).unwrap();
 
         // Getting the maximum length on each axis of the grid boundary
-        let length_on_x = bounds.size()[0];
-        let length_on_y = bounds.size()[1];
-        let length_on_z = bounds.size()[2];
+        let length_on_x = bounds.size().x();
+        let length_on_y = bounds.size().y();
+        let length_on_z = bounds.size().z();
 
         // Calculating the cell sizes for each axis to initialize the
         // grid uniformly
@@ -110,8 +114,12 @@ where
         // Storing the bounds as the grid boundary parameters to later
         // use them for boundary limitations
         let bounds = GridBoundary {
-            center: bounds.centre(),
-            size: bounds.size(),
+            center: [
+                bounds.centre().x(),
+                bounds.centre().y(),
+                bounds.centre().z(),
+            ],
+            size: [bounds.size().x(), bounds.size().y(), bounds.size().z()],
         };
 
         Self {
@@ -119,22 +127,23 @@ where
             params,
             bounds,
             wrap,
+            phantom: PhantomData,
         }
     }
 
     pub fn insert(&mut self, entity: DataRef<'a, T>)
     where
-        T: Coordinate<Item = F> + Entity,
+        T: Entity<Dx, F>,
     {
         // Getting the grid's extreme boundary parameters to apply the boundary
         // limits to the calculated cell cords if necessary
-        let grid_max_bounds = self.bounds.max();
-        let grid_min_bounds = self.bounds.min();
+        let grid_max_bounds = self.bounds.boundary_max();
+        let grid_min_bounds = self.bounds.boundary_min();
 
-        let mut coodrinates = (entity.x(), entity.y(), entity.z());
+        let mut coodrinates = entity.position().xyz();
 
         // Validating if the point is within the grid bounds
-        if !self.bounds.is_inside(coodrinates) {
+        if !self.bounds.is_inside(entity.position()) {
             // Wraps around the nearest cell to the grid if the point is outside and wrap
             // is enabled
             if self.wrap {
@@ -158,7 +167,8 @@ where
         }
 
         // Resulting cell coordinates x, y and floor index
-        let (cx, cy, floor) = self.get_cell_coordinates(coodrinates);
+        let (cx, cy, floor) =
+            self.get_cell_coordinates(coodrinates.0, coodrinates.1, coodrinates.2);
 
         // Calculating the unique hash index from the cell coordinates to find the cell
         // for the entity
@@ -181,10 +191,11 @@ where
         }
     }
 
-    pub fn query<Id>(&self, query: Query<F, Id>) -> QueryResult<'a, F, Id, T>
+    pub fn query<Id, C>(&self, query: Query<F, Id, C>) -> QueryResult<'a, F, Id, T, C>
     where
         Id: DataIndex,
-        T: Coordinate<Item = F> + Entity<ID = Id>,
+        T: Entity<Id, F>,
+        C: Coordinate<F>,
     {
         let radius_x = (F::from_u32(self.xcells()).unwrap() * query.radius())
             .max(F::one())
@@ -202,7 +213,7 @@ where
             .to_i32()
             .unwrap();
 
-        let (cx, cy, floor) = self.get_cell_coordinates((query.x(), query.y(), query.z()));
+        let (cx, cy, floor) = self.get_cell_coordinates(query.x(), query.y(), query.z());
 
         let base_cx = cx as i32;
         let base_cy = cy as i32;
@@ -266,22 +277,22 @@ where
     /// the unique `HashIndex`.
     pub fn update(&mut self, data: &'a [T])
     where
-        T: Coordinate<Item = F> + Entity,
+        T: Entity<Dx, F>,
     {
         // Getting the grid's extreme boundary parameters to apply the boundary
         // limits to the calculated cell cords if necessary
-        let grid_max_bounds = self.bounds.max();
-        let grid_min_bounds = self.bounds.min();
+        let grid_max_bounds = self.bounds.boundary_max();
+        let grid_min_bounds = self.bounds.boundary_min();
 
         for entity in data.iter() {
             // Getting the cell coordinates from entity coordinates
             // z-axis from the entity coordinates defines at which floor of the grid
             // to look for the cell
-            let mut coodrinates = (entity.x(), entity.y(), entity.z());
+            let mut coodrinates = entity.position().xyz();
 
             // Wrapping around the nearest grid bounds if the wrap is enabled and the
             // entity is outside the grid bounds or else do not add the entity inside the grid
-            if !self.bounds.is_inside(coodrinates) {
+            if !self.bounds.is_inside(entity.position()) {
                 if self.wrap {
                     coodrinates.0 = coodrinates
                         .0
@@ -301,7 +312,8 @@ where
             }
 
             // Resulting cell coordinates x, y and floor index
-            let (cx, cy, floor) = self.get_cell_coordinates(coodrinates);
+            let (cx, cy, floor) =
+                self.get_cell_coordinates(coodrinates.0, coodrinates.1, coodrinates.2);
 
             // Calculating the unique hash index from the cell coordinates to find the cell
             // for the entity
@@ -329,10 +341,7 @@ where
     /// location inside the grid.
     ///
     /// Reutrns the `Floor` number, `x` and `y` components of the cell in search.
-    pub fn get_cell_coordinates(&self, coordinates: (F, F, F)) -> (u32, u32, usize) {
-        // Destructuring the entity coordinates into x, y, z components
-        let (x, y, z) = coordinates;
-
+    pub fn get_cell_coordinates(&self, x: F, y: F, z: F) -> (u32, u32, usize) {
         // Normalizing the x and y component according to cell size to find the
         // cell coordinates inside the grid
         let cx = (x / self.cell_size_x()).floor().abs().to_u32().unwrap();

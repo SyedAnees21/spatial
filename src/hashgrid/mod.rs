@@ -1,15 +1,16 @@
 use core::fmt;
-use grid::DataRef;
-use num_traits::{Float, FromPrimitive, One, PrimInt, ToPrimitive, Unsigned, Zero};
+use grid::{DataRef, DefaultDx};
+use num_traits::{Float, FromPrimitive, PrimInt, ToPrimitive, Unsigned, Zero};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
-    ops::Div,
 };
 
 pub use grid::HashGrid;
 
 mod grid;
+
+type DefaultFloat = f32;
 
 /// ### Cells per Axis
 ///
@@ -57,17 +58,45 @@ pub struct GridBoundary<F> {
     pub size: [F; 3],
 }
 
-impl<F: Float + FromPrimitive + ToPrimitive> Boundary for GridBoundary<F> {
-    type Item = F;
+impl<F: Float + FromPrimitive + ToPrimitive> Boundary<F> for GridBoundary<F> {
+    type T = [F; 3];
 
-    fn centre(&self) -> [Self::Item; 3] {
+    fn centre(&self) -> [F; 3] {
         self.center
     }
 
-    fn size(&self) -> [Self::Item; 3] {
+    fn size(&self) -> [F; 3] {
         self.size
     }
 }
+
+impl<F: Float + FromPrimitive + ToPrimitive> Coordinate<F> for [F; 3] {
+    fn new(x: F, y: F, z: F) -> Self {
+        [x, y, z]
+    }
+
+    fn x(&self) -> F {
+        self[0]
+    }
+
+    fn y(&self) -> F {
+        self[1]
+    }
+
+    fn z(&self) -> F {
+        self[2]
+    }
+}
+
+// impl<F, T> From<T> for [F;3]
+// where
+//     F: Float + FromPrimitive + ToPrimitive,
+//     T: Coordinate<Component = F>,
+// {
+//     fn from(value: T) -> Self {
+//         [value.x(), value.y(), value.z()]
+//     }
+// }
 
 /// Stores the grid information regarding the cell sizes and number of cells per axis
 #[derive(Debug)]
@@ -114,65 +143,79 @@ impl<Id: Display> fmt::Display for QueryType<Id> {
 ///
 /// ```rust
 /// use spatial::hashgrid::{HashGrid, Boundary, Coordinate, Entity, Query, QueryType};
+/// # #[derive(Debug, Copy, Clone, PartialEq)]
+/// # struct Point2 {
+/// #     x: f32,
+/// #     y: f32,
+/// #     z: f32,
+/// # }
+/// # impl Coordinate for Point2 {
+/// #     fn new(x: f32, y: f32, _: f32) -> Self {
+/// #         Self {
+/// #             x,
+/// #             y,
+/// #             z: 0.0,
+/// #         }
+/// #     }
+/// #     fn x(&self) -> f32 {
+/// #       self.x
+/// #     }
+/// #     fn y(&self) -> f32 {
+/// #       self.y
+/// #     }
+/// # }
 /// # struct Bounds {
-/// #     center: (f32,f32,f32),
-/// #     size: (f32,f32,f32),
+/// #     center: Point2,
+/// #     size: Point2,
 /// # }
 /// #
 /// # impl Boundary for Bounds {
-/// #     type Item = f32;
+/// #     type T = Point2;
 /// #     
-/// #     fn centre(&self) -> [Self::Item; 3] {
-/// #         [self.center.0, self.center.1, self.center.2]
+/// #     fn centre(&self) -> Self::T {
+/// #         self.center
 /// #     }
 /// #     
-/// #     fn size(&self) -> [Self::Item; 3] {
-/// #         [self.size.0, self.size.1, self.size.2]
+/// #     fn size(&self) -> Self::T {
+/// #         self.size
 /// #     }
 /// # }
 /// # #[derive(Debug, PartialEq)]
-/// # struct Object {
+/// # struct Object2D {
 /// #     id: u32,
-/// #     position: (f32,f32),
+/// #     position: Point2
 /// # }
-/// #
-/// # impl Entity for Object {
-/// #     type ID = u32;
-/// #     fn id(&self) -> Self::ID {
+/// # impl Entity for Object2D {
+/// #     type Position = Point2;
+/// #     
+/// #     fn id(&self) -> u32 {
 /// #         self.id
 /// #     }
-/// # }
 /// #     
-/// #     impl Coordinate for Object {
-/// #     type Item = f32;
-/// #     fn x(&self) -> Self::Item {
-/// #         self.position.0
-/// #     }
-/// #
-/// #     fn y(&self) -> Self::Item {
-/// #         self.position.1
+/// #     fn position(&self) -> Self::Position {
+/// #         self.position
 /// #     }
 /// # }
 ///
 /// // Assuming that the bounds implements HashGrid::Boundary trait
 /// let bounds = Bounds {
-///     center: (0.0, 0.0, 0.0),
-///     size: (100.0, 100.0, 100.0)
+///     center: Point2::new(0.0, 0.0, 0.0),
+///     size: Point2::new(100.0, 100.0, 0.0)
 /// };
 ///
 /// // Creating the Hashgrid with f32 as the base float and object as the base data type
 /// // Object type must implements the HashGrid::{Entity, Coordinate} traits
-/// let mut hashgrid = HashGrid::<f32, Object>::new([2,2], 0, &bounds, false);
+/// let mut hashgrid = HashGrid::<f32, Object2D>::new([2,2], 0, &bounds, false);
 ///
 /// // Creating two objects at different locations
-/// let obj1 = Object {
+/// let obj1 = Object2D {
 ///     id: 0,
-///     position: (22.0, 30.0)
+///     position: Point2::new(22.0, 30.0, 0.0)
 /// };
 ///
-/// let obj2 = Object {
+/// let obj2 = Object2D {
 ///     id: 0,
-///     position: (15.0, 45.0)
+///     position: Point2::new(15.0, 45.0, 0.0)
 /// };
 ///
 /// // Inserting the objects into the hashgrid
@@ -181,7 +224,7 @@ impl<Id: Display> fmt::Display for QueryType<Id> {
 ///
 /// // Creating a query to query the hash grid for relevant data within a single cell
 /// // this is defined by the radius = 0, at some location define by the query coordinates
-/// let query = Query::from((25., 25., 0.), QueryType::Relevant, 0.0);
+/// let query = Query::from(Point2::new(25., 25., 0.), QueryType::Relevant, 0.0);
 ///
 /// // Now querying the hashgrid
 /// let res = hashgrid.query(query);
@@ -192,32 +235,38 @@ impl<Id: Display> fmt::Display for QueryType<Id> {
 ///
 /// Querying the hashgrid returns the [`QueryResult`] as response.
 #[derive(Debug, Clone, Copy)]
-pub struct Query<F, Id> {
+pub struct Query<F, Id, C> {
     pub radius: F,
     pub ty: QueryType<Id>,
-    pub coordinates: (F, F, F),
+    pub coordinates: C,
 }
 
-impl<F, Id> fmt::Display for Query<F, Id>
+impl<F, Id, C> fmt::Display for Query<F, Id, C>
 where
-    F: Float + FromPrimitive + ToPrimitive + Display,
+    F: Float + FromPrimitive + ToPrimitive + Display + Copy,
     Id: DataIndex + Display,
+    C: Coordinate<F>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Query [\n  Type: {}\n  Radius: {}\n  Coordinates: (x= {}, y= {}, z= {})\n]",
-            self.ty, self.radius, self.coordinates.0, self.coordinates.1, self.coordinates.2,
+            "Query [\n  Type: {}\n  Radius: {}\n  Coordinates: (x= {}, y= {}, z= {})\n  ]",
+            self.ty,
+            self.radius,
+            self.coordinates.x(),
+            self.coordinates.y(),
+            self.coordinates.z(),
         )
     }
 }
 
-impl<F, Id> Query<F, Id>
+impl<F, Id, C> Query<F, Id, C>
 where
     F: Float + FromPrimitive + ToPrimitive,
     Id: DataIndex,
+    C: Coordinate<F>,
 {
-    pub fn from(cords: (F, F, F), query_type: QueryType<Id>, radius: F) -> Self {
+    pub fn from(cords: C, query_type: QueryType<Id>, radius: F) -> Self {
         Self {
             radius,
             ty: query_type,
@@ -226,15 +275,15 @@ where
     }
 
     pub fn x(&self) -> F {
-        self.coordinates.0
+        self.coordinates.x()
     }
 
     pub fn y(&self) -> F {
-        self.coordinates.1
+        self.coordinates.y()
     }
 
     pub fn z(&self) -> F {
-        self.coordinates.2
+        self.coordinates.z()
     }
 
     pub fn radius(&self) -> F {
@@ -247,23 +296,24 @@ where
 
 /// QueryResult is the return type for [`Query`]. When we query the hashgrid, hashgrid returns
 /// a response in `QueryResult`.
-/// 
+///
 /// It contains the original query made to hashgrid, and the list of immutable references to the data
 /// collected as the response. To access the data isnside the QueryResult, use method [`QueryResult::data`]
 /// and to see the original query use [`QueryResult::query`]
 #[derive(Debug)]
-pub struct QueryResult<'a, F, Id, T> {
-    query: Query<F, Id>,
+pub struct QueryResult<'a, F, Id, T, C> {
+    query: Query<F, Id, C>,
     data: Vec<DataRef<'a, T>>,
 }
 
-impl<'a, F, Id, T> QueryResult<'a, F, Id, T>
+impl<'a, F, Id, T, C> QueryResult<'a, F, Id, T, C>
 where
     F: Float + FromPrimitive + ToPrimitive,
     Id: DataIndex,
+    C: Coordinate<F>,
 {
-    pub fn query(&self) -> Query<F, Id> {
-        self.query
+    pub fn query(&self) -> &Query<F, Id, C> {
+        &self.query
     }
 
     pub fn data(&self) -> &[DataRef<'a, T>] {
@@ -271,11 +321,12 @@ where
     }
 }
 
-impl<'a, F, Id, T> fmt::Display for QueryResult<'a, F, Id, T>
+impl<'a, F, Id, T, C> fmt::Display for QueryResult<'a, F, Id, T, C>
 where
     F: Float + FromPrimitive + ToPrimitive + Display,
     Id: DataIndex + Display,
     T: Debug,
+    C: Coordinate<F>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -289,41 +340,65 @@ where
 
 /// Type used as unique cell indices or the cell hash for identifying the grid cell
 /// to insert or retreive the data.
-/// 
+///
 /// `HashIndex` is generic over the type to be used as hash index and is passed through
 /// the `HashGrid` initialization. If there is no type passed for the hashindex, then
 /// it defaults to the type `u64`
-/// 
+///
 /// # Example
-/// 
+///
 /// This is how we can pass the hashindex type at the time of [`HashGrid`] initialization
-/// 
+///
 /// ```rust
-/// # use spatial::hashgrid::{HashGrid, Boundary};
+/// # use spatial::hashgrid::{HashGrid, Boundary, Coordinate};
+/// # #[derive(Copy, Clone)]
+/// # struct Point3 {
+/// #     x: f32,
+/// #     y: f32,
+/// #     z: f32,
+/// # }
+/// # impl Coordinate for Point3 {
+/// #     fn new(x: f32, y: f32, z: f32) -> Self {
+/// #         Self {
+/// #             x,
+/// #             y,
+/// #             z,
+/// #         }
+/// #     }
+/// #     fn x(&self) -> f32 {
+/// #       self.x
+/// #     }
+/// #     fn y(&self) -> f32 {
+/// #       self.y
+/// #     }
+/// #     fn z(&self) -> f32 {
+/// #       self.z
+/// #     }
+/// # }
 /// # struct Bounds {
-/// #     center: (f32,f32,f32),
-/// #     size: (f32,f32,f32),
+/// #     center: Point3,
+/// #     size: Point3,
 /// # }
 /// #
 /// # impl Boundary for Bounds {
-/// #     type Item = f32;
+/// #     type T = Point3;
 /// #     
-/// #     fn centre(&self) -> [Self::Item; 3] {
-/// #         [self.center.0, self.center.1, self.center.2]
+/// #     fn centre(&self) -> Point3 {
+/// #         self.center
 /// #     }
 /// #     
-/// #     fn size(&self) -> [Self::Item; 3] {
-/// #         [self.size.0, self.size.1, self.size.2]
+/// #     fn size(&self) -> Point3 {
+/// #         self.size
 /// #     }
 /// # }
 /// # let boundary = Bounds {
-/// #     center: (0.0, 0.0, 0.0),
-/// #     size: (100.0, 100.0, 100.0)
+/// #     center: Point3::new(0.0, 0.0, 0.0),
+/// #     size: Point3::new(100.0, 100.0, 100.0)
 /// # };
 /// // Here we are initializing the HashGrid with `f32` as bas float type
 /// // and passing no type for the data to the hashgrid and the `u32` as the
 /// // HashIndex type
-/// let hashgrid = HashGrid::<f32,(),u32>::new([2,2], 2, &boundary, false);
+/// let hashgrid = HashGrid::<f32, (), u32>::new([2,2], 2, &boundary, false);
 /// ```
 pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
 
@@ -347,92 +422,104 @@ where
 }
 
 /// `Entity` trait obligates the data object to have a unique id
-/// 
+///
 /// This is a trait bound imposed by the hashgrid to must implement for data type for which
 /// the hashgrid is being created.
-pub trait Entity {
-    type ID: DataIndex;
+pub trait Entity<D = DefaultDx, F = DefaultFloat>
+where
+    F: Float + FromPrimitive + ToPrimitive,
+    D: DataIndex,
+{
+    type Position: Coordinate<F>;
 
     /// Mendatory method to return the unique ID value of the data type
-    fn id(&self) -> Self::ID;
+    fn id(&self) -> D;
+
+    fn position(&self) -> Self::Position;
 }
 
 /// `Coordinate` trait obligates the data object to have spatial coordinates components. This
 /// trait can be implemented on the 2D object types as well.
-/// 
+///
 /// This is a trait bound imposed by the hashgrid to must implement for data type for which
 /// the hashgrid is being created.
-pub trait Coordinate {
-    type Item: Float;
+pub trait Coordinate<F = DefaultFloat>: Clone + Copy
+where
+    F: Float + FromPrimitive + ToPrimitive,
+{
+    fn new(x: F, y: F, z: F) -> Self;
 
     /// Mendatory method to return the x coordinate value of the data type
-    fn x(&self) -> Self::Item;
+    fn x(&self) -> F;
 
     /// Mendatory method to return the y coordinate value of the data type
-    fn y(&self) -> Self::Item;
+    fn y(&self) -> F;
 
     // Optional method to return the z coordinate value of the data type if
     /// the type is 3D
-    fn z(&self) -> Self::Item {
+    fn z(&self) -> F {
         Zero::zero()
+    }
+
+    fn xyz(&self) -> (F, F, F) {
+        (self.x(), self.y(), self.z())
     }
 }
 
-pub trait Boundary {
-    type Item: Float + FromPrimitive + ToPrimitive;
+pub trait Boundary<F = DefaultFloat>
+where
+    F: Float + FromPrimitive + ToPrimitive,
+{
+    type T: Coordinate<F>;
 
-    fn centre(&self) -> [Self::Item; 3];
-    fn size(&self) -> [Self::Item; 3];
+    fn centre(&self) -> Self::T;
+    fn size(&self) -> Self::T;
 
-    fn is_inside(&self, point: (Self::Item, Self::Item, Self::Item)) -> bool {
+    fn is_inside<U>(&self, point: U) -> bool
+    where
+        U: Coordinate<F>,
+    {
         let half_size = [
-            self.size()[0].div(Self::Item::one() + Self::Item::one()),
-            self.size()[1].div(Self::Item::one() + Self::Item::one()),
-            self.size()[2].div(Self::Item::one() + Self::Item::one()),
+            self.size().x().div(F::from_f32(2.0).unwrap()),
+            self.size().y().div(F::from_f32(2.0).unwrap()),
+            self.size().z().div(F::from_f32(2.0).unwrap()),
         ];
 
-        let dx = (point.0 - self.centre()[0]).abs();
-        let dy = (point.1 - self.centre()[1]).abs();
-        let dz = (point.2 - self.centre()[2]).abs();
+        let dx = point.x() - self.centre().x().abs();
+        let dy = point.y() - self.centre().y().abs();
+        let dz = point.z() - self.centre().z().abs();
 
         dx <= half_size[0] && dy <= half_size[1] && dz <= half_size[2]
     }
 
-    fn max(&self) -> [Self::Item; 3] {
+    fn boundary_max(&self) -> Self::T {
         let half_size = [
-            self.size()[0].div(Self::Item::one() + Self::Item::one()),
-            self.size()[1].div(Self::Item::one() + Self::Item::one()),
-            self.size()[2].div(Self::Item::one() + Self::Item::one()),
+            self.size().x().div(F::from_f32(2.0).unwrap()),
+            self.size().y().div(F::from_f32(2.0).unwrap()),
+            self.size().z().div(F::from_f32(2.0).unwrap()),
         ];
 
-        [
-            self.centre()[0] + half_size[0],
-            self.centre()[1] + half_size[1],
-            self.centre()[2] + half_size[2],
-        ]
+        Self::T::new(
+            self.centre().x() + half_size[0],
+            self.centre().y() + half_size[1],
+            self.centre().z() + half_size[2],
+        )
     }
 
-    fn min(&self) -> [Self::Item; 3] {
+    fn boundary_min(&self) -> Self::T {
         let half_size = [
-            self.size()[0].div(Self::Item::one() + Self::Item::one()),
-            self.size()[1].div(Self::Item::one() + Self::Item::one()),
-            self.size()[2].div(Self::Item::one() + Self::Item::one()),
+            self.size().x().div(F::from_f32(2.0).unwrap()),
+            self.size().y().div(F::from_f32(2.0).unwrap()),
+            self.size().z().div(F::from_f32(2.0).unwrap()),
         ];
 
-        [
-            self.centre()[0] - half_size[0],
-            self.centre()[1] - half_size[1],
-            self.centre()[2] - half_size[2],
-        ]
+        Self::T::new(
+            self.centre().x() - half_size[0],
+            self.centre().y() - half_size[1],
+            self.centre().z() - half_size[2],
+        )
     }
 }
-
-// pub type DefaultDx = usize;
-
-// pub struct Data<'a, T, Dx = DefaultDx> {
-//     pub index: Dx,
-//     pub refer: DataRef<'a, T>
-// }
 
 pub trait DataIndex: Copy + Default + Ord + fmt::Debug + 'static {}
 

@@ -6,17 +6,30 @@ struct Bounds {
 }
 
 impl Boundary for Bounds {
-    type Item = f32;
+    type T = [f32; 3];
 
-    fn centre(&self) -> [Self::Item; 3] {
+    fn centre(&self) -> Self::T {
         self.centre
     }
 
-    fn size(&self) -> [Self::Item; 3] {
+    fn size(&self) -> Self::T {
         self.size
     }
 }
 
+impl Coordinate for [f32; 2] {
+    fn new(x: f32, y: f32, _z: f32) -> Self {
+        [x, y]
+    }
+
+    fn x(&self) -> f32 {
+        self[0]
+    }
+
+    fn y(&self) -> f32 {
+        self[1]
+    }
+}
 #[derive(Debug, PartialEq, PartialOrd)]
 struct Player2D {
     id: u32,
@@ -30,20 +43,14 @@ impl Player2D {
 }
 
 impl Entity for Player2D {
-    type ID = u32;
-    fn id(&self) -> Self::ID {
+    type Position = [f32; 2];
+
+    fn id(&self) -> u32 {
         self.id
     }
-}
 
-impl Coordinate for Player2D {
-    type Item = f32;
-    fn x(&self) -> Self::Item {
-        self.position[0]
-    }
-
-    fn y(&self) -> Self::Item {
-        self.position[1]
+    fn position(&self) -> [f32; 2] {
+        self.position
     }
 }
 
@@ -62,8 +69,8 @@ fn grid_2d_3d_initialization() {
     assert_eq!(hashgrid_3d.floor_size(), 500_f32);
 
     // asserting the initialized grid boundary parameters
-    assert_eq!(hashgrid_3d.bounds.max(), [500_f32; 3]);
-    assert_eq!(hashgrid_3d.bounds.min(), [-500_f32; 3]);
+    assert_eq!(hashgrid_3d.bounds.boundary_max(), [500_f32; 3]);
+    assert_eq!(hashgrid_3d.bounds.boundary_min(), [-500_f32; 3]);
 
     // uncomment the line to print the hashgrid
     // println!("{hashgrid_3d}");
@@ -81,8 +88,14 @@ fn grid_2d_3d_initialization() {
     assert_eq!(hashgrid_2d.floor_size(), 1_f32);
 
     // asserting the initialized grid boundary parameters
-    assert_eq!(hashgrid_2d.bounds.max(), [500_f32, 500_f32, 0_f32,]);
-    assert_eq!(hashgrid_2d.bounds.min(), [-500_f32, -500_f32, 0_f32,]);
+    assert_eq!(
+        hashgrid_2d.bounds.boundary_max(),
+        [500_f32, 500_f32, 0_f32,]
+    );
+    assert_eq!(
+        hashgrid_2d.bounds.boundary_min(),
+        [-500_f32, -500_f32, 0_f32,]
+    );
 
     // uncomment the line to print the hashgrid
     // println!("{hashgrid_2d}");
@@ -103,8 +116,11 @@ fn data_insertion_2d() {
     assert_eq!(hashgrid_2d.floor_size(), 1_f32);
 
     // asserting the initialized grid boundary parameters
-    assert_eq!(hashgrid_2d.bounds.max(), [50_f32, 50_f32, 0_f32,]);
-    assert_eq!(hashgrid_2d.bounds.min(), [-50_f32, -50_f32, 0_f32,]);
+    assert_eq!(hashgrid_2d.bounds.boundary_max(), [50_f32, 50_f32, 0_f32,]);
+    assert_eq!(
+        hashgrid_2d.bounds.boundary_min(),
+        [-50_f32, -50_f32, 0_f32,]
+    );
 
     let player1 = Player2D::new(0, [22.5, 30.0]);
     let player2 = Player2D::new(2, [15.5, 45.6]);
@@ -116,7 +132,7 @@ fn data_insertion_2d() {
     println!("{hashgrid_2d}");
 
     let query = Query {
-        coordinates: (10.0, 10.0, 0.0),
+        coordinates: [10.0, 10.0, 0.0],
         ty: QueryType::Relevant,
         radius: 0.0,
     };
