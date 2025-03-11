@@ -1,4 +1,7 @@
-use crate::hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType};
+use crate::{
+    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType},
+    traits::{Float, FromPrimitive, Primitive, ToPrimitive},
+};
 
 struct Bounds {
     centre: [f32; 3],
@@ -140,4 +143,23 @@ fn data_insertion_2d() {
     let res = hashgrid_2d.query(query);
 
     println!("{res}");
+}
+
+fn get_pi<F: Float + FromPrimitive + ToPrimitive>() -> F {
+    F::PI
+}
+
+fn add_two_sqrt<FLOAT: Float + std::ops::Add<Output = FLOAT>>(v1: FLOAT, v2: FLOAT) -> FLOAT {
+    v1.sqrt() + v2.sqrt()
+}
+
+#[test]
+fn generic_floats() {
+    let a: f32 = get_pi();
+    let b = get_pi::<f64>();
+
+    let c = add_two_sqrt(2.0_f32, 3.0_f32);
+    let d = add_two_sqrt(2.0, 3.0);
+
+    println!("a:{}\nb:{}\nc:{}\nd:{}", a, b, c, d);
 }
