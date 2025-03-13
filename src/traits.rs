@@ -1,6 +1,16 @@
 /// A generic trait which represents rust primitive numbers type. This
 /// trait acts as the basic bounds requirement by main `Float` trait.
-pub trait Primitive {}
+/// 
+/// It offers the blanket implementation over rust primitive numbers.
+pub trait Primitive: Copy
+    + 'static
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + PartialOrd
+    + Sized
+{}
 
 /// This is the blanket implementation of `primitive` trait on types which
 /// implements basic aithematic and logical tratis.
@@ -13,6 +23,7 @@ impl<T> Primitive for T where
         + std::ops::Div<Output = Self>
         + std::ops::Neg<Output = Self>
         + PartialOrd
+        + Sized
 {
 }
 
@@ -401,6 +412,7 @@ pub trait Float: Primitive + ToPrimitive<Input = Self> + FromPrimitive<Output = 
     fn to_f32(self) -> f32;
     fn to_f64(self) -> f64;
 }
+
 
 /// Macro for implementing core `Float` trait for f32 and f64 types.
 macro_rules! impl_float {

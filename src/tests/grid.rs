@@ -1,6 +1,8 @@
+use core::f32;
+
 use crate::{
-    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType},
-    traits::{Float, FromPrimitive, Primitive, ToPrimitive},
+    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType}, vertex,
+    // traits::{Float, FromPrimitive, Primitive, ToPrimitive},
 };
 
 struct Bounds {
@@ -145,21 +147,27 @@ fn data_insertion_2d() {
     println!("{res}");
 }
 
-fn get_pi<F: Float + FromPrimitive + ToPrimitive>() -> F {
-    F::PI
-}
+// fn get_pi<F: Float + FromPrimitive + ToPrimitive>() -> F {
+//     F::PI
+// }
 
-fn add_two_sqrt<FLOAT: Float + std::ops::Add<Output = FLOAT>>(v1: FLOAT, v2: FLOAT) -> FLOAT {
-    v1.sqrt() + v2.sqrt()
-}
+// fn add_two_sqrt<FLOAT: Float>(v1: FLOAT, v2: FLOAT) -> FLOAT {
+//     v1.sqrt() + v2.sqrt()
+// }
 
 #[test]
 fn generic_floats() {
-    let a: f32 = get_pi();
-    let b = get_pi::<f64>();
+    // let a: f32 = get_pi();
+    // let b = get_pi::<f64>();
 
-    let c = add_two_sqrt(2.0_f32, 3.0_f32);
-    let d = add_two_sqrt(2.0, 3.0);
+    // let c = add_two_sqrt(2.0_f32, 3.0_f32);
+    // let d = add_two_sqrt(2.0, 3.0);
 
-    println!("a:{}\nb:{}\nc:{}\nd:{}", a, b, c, d);
+    // println!("a:{}\nb:{}\nc:{}\nd:{}", a, b, c, d);
+    use crate::Vertex;
+    let a = vertex!(20.0,2,3);
+    let b = vertex!(1,2);
+    let c = vertex!();
+
+    println!("{:?}", a);
 }
