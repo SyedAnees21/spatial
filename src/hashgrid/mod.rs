@@ -1,11 +1,11 @@
 use core::fmt;
 use grid::{DataRef, DefaultDx};
-use num_traits::{Float, FromPrimitive, PrimInt, ToPrimitive, Unsigned, Zero};
+// use num_traits::{Float, FromPrimitive, PrimInt, ToPrimitive, Unsigned, Zero};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
 };
-
+use crate::traits::{Float, FromPrimitive, ToPrimitive};
 pub use grid::HashGrid;
 
 mod grid;
@@ -20,11 +20,11 @@ type DefaultFloat = f32;
 pub struct CellsPerAxis {
     xcells: u32,
     ycells: u32,
-    floors: usize,
+    floors: u32,
 }
 
 impl CellsPerAxis {
-    pub fn from(cells: &[u32], floors: usize) -> Self {
+    pub fn from(cells: &[u32], floors: u32) -> Self {
         assert!(
             cells.len() == 2,
             "Invalid components, expected 2 components for cells per axis"
@@ -400,26 +400,26 @@ where
 /// // HashIndex type
 /// let hashgrid = HashGrid::<f32, (), u32>::new([2,2], 2, &boundary, false);
 /// ```
-pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
+// pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
 
-impl<T> HashIndex<T>
-where
-    T: PrimInt + FromPrimitive + ToPrimitive + Hash,
-{
-    pub fn key(&self) -> T {
-        self.0
-    }
-}
+// impl<T> HashIndex<T>
+// where
+//     T: PrimInt + FromPrimitive + ToPrimitive + Hash,
+// {
+//     pub fn key(&self) -> T {
+//         self.0
+//     }
+// }
 
-impl<U, T> From<U> for HashIndex<T>
-where
-    U: Unsigned + ToPrimitive + FromPrimitive,
-    T: PrimInt + FromPrimitive + ToPrimitive + Hash,
-{
-    fn from(value: U) -> Self {
-        HashIndex(T::from(value).unwrap())
-    }
-}
+// impl<U, T> From<U> for HashIndex<T>
+// where
+//     U: Unsigned + ToPrimitive + FromPrimitive,
+//     T: PrimInt + FromPrimitive + ToPrimitive + Hash,
+// {
+//     fn from(value: U) -> Self {
+//         HashIndex(T::from(value).unwrap())
+//     }
+// }
 
 /// `Entity` trait obligates the data object to have a unique id
 ///
@@ -458,7 +458,7 @@ where
     // Optional method to return the z coordinate value of the data type if
     /// the type is 3D
     fn z(&self) -> F {
-        Zero::zero()
+        F::zero()
     }
 
     fn xyz(&self) -> (F, F, F) {
@@ -480,9 +480,9 @@ where
         U: Coordinate<F>,
     {
         let half_size = [
-            self.size().x().div(F::from_f32(2.0).unwrap()),
-            self.size().y().div(F::from_f32(2.0).unwrap()),
-            self.size().z().div(F::from_f32(2.0).unwrap()),
+            self.size().x() / F::from_u8(2),
+            self.size().y() / F::from_u8(2),
+            self.size().z() / F::from_u8(2),
         ];
 
         let dx = point.x() - self.centre().x().abs();
@@ -494,9 +494,9 @@ where
 
     fn boundary_max(&self) -> Self::T {
         let half_size = [
-            self.size().x().div(F::from_f32(2.0).unwrap()),
-            self.size().y().div(F::from_f32(2.0).unwrap()),
-            self.size().z().div(F::from_f32(2.0).unwrap()),
+            self.size().x() / F::from_u8(2),
+            self.size().y() / F::from_u8(2),
+            self.size().z() / F::from_u8(2),
         ];
 
         Self::T::new(
@@ -508,9 +508,9 @@ where
 
     fn boundary_min(&self) -> Self::T {
         let half_size = [
-            self.size().x().div(F::from_f32(2.0).unwrap()),
-            self.size().y().div(F::from_f32(2.0).unwrap()),
-            self.size().z().div(F::from_f32(2.0).unwrap()),
+            self.size().x() / F::from_u8(2),
+            self.size().y() / F::from_u8(2),
+            self.size().z() / F::from_u8(2),
         ];
 
         Self::T::new(

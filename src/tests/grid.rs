@@ -1,7 +1,9 @@
 use core::f32;
+use std::{default, i32};
 
 use crate::{
-    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType}, vertex,
+    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType},
+    vertex,
     // traits::{Float, FromPrimitive, Primitive, ToPrimitive},
 };
 
@@ -155,6 +157,8 @@ fn data_insertion_2d() {
 //     v1.sqrt() + v2.sqrt()
 // }
 
+struct Type;
+
 #[test]
 fn generic_floats() {
     // let a: f32 = get_pi();
@@ -164,10 +168,81 @@ fn generic_floats() {
     // let d = add_two_sqrt(2.0, 3.0);
 
     // println!("a:{}\nb:{}\nc:{}\nd:{}", a, b, c, d);
-    use crate::Vertex;
-    let a = vertex!(20.0,2,3);
-    let b = vertex!(1,2);
+    use crate::{
+        traits::{Float, FromPrimitive},
+        Vertex,
+    };
+
+    let a = vertex!(20.0, 2, 3);
+    let b = vertex!(1, 2);
     let c = vertex!();
 
-    println!("{:?}", a);
+    let a: Vec<Type> = vec![];
+
+    let d = vertex!(f32, 1, 2, 3);
+    let e = vertex!(f64, 1, 2, 3);
+
+    // println!("{:?}", a);
+}
+
+#[derive(Default, Debug)]
+struct Stack {
+    elements: Vec<i32>,
+    min_element: i32,
+}
+
+impl Stack {
+    fn push(&mut self, x: i32) {
+        if self.elements.is_empty() {
+            self.elements.push(x);
+            self.min_element = x;
+
+            return;
+        }
+
+        if x < self.min_element {
+            let encoded_int = 2 * x - self.min_element;
+            self.elements.push(encoded_int);
+            self.min_element = x;
+
+            return;
+        }
+
+        self.elements.push(x);
+    }
+
+    fn pop(&mut self) -> Option<i32> {
+        if let Some(element) = self.elements.pop() {
+            if element < self.min_element {
+                self.min_element = 2 * self.min_element - element;
+                return Some(element);
+            }
+
+            return Some(element);
+        }
+
+        None
+    }
+
+    fn min_element(&self) -> i32 {
+        self.min_element
+    }
+}
+
+#[test]
+fn min_Stack() {
+
+    let mut stack = Stack::default();
+
+    for number in [5,5,6,7,8,2,9] {
+        stack.push(number);   
+    }
+
+    println!("{:?}", stack);
+
+    stack.pop();
+    stack.pop();
+
+    println!("{:?}", stack);
+
 }

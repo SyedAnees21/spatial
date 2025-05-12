@@ -409,6 +409,9 @@ pub trait Float: Primitive + ToPrimitive<Input = Self> + FromPrimitive<Output = 
 
     // Conversion to f32/f64
 
+    fn zero() -> Self;
+    fn one() -> Self;
+
     fn to_f32(self) -> f32;
     fn to_f64(self) -> f64;
 }
@@ -569,6 +572,18 @@ macro_rules! impl_float {
             #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
+            }
+
+            #[must_use = "Returns a new value as a result and doesn't mutate self"]
+            #[inline(always)]
+            fn zero() -> Self {
+                0_u8 as $type
+            }
+
+            #[must_use = "Returns a new value as a result and doesn't mutate self"]
+            #[inline(always)]
+            fn one() -> Self {
+                1_u8 as $type
             }
         }
     };
