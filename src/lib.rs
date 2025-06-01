@@ -1,6 +1,7 @@
 use std::ops::{Add, Sub};
 
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
+use traits::Float;
 
 pub mod hashgrid;
 mod quad;
