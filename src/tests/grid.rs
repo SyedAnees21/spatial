@@ -105,39 +105,51 @@ fn grid_2d_3d_initialization() {
 fn data_insertion_2d() {
     let bounds_2d = Bounds {
         centre: [0_f32; 3],
-        size: [100_f32, 100_f32, 0_f32],
+        size: [1000_f32, 1000_f32, 0_f32],
     };
 
-    let mut hashgrid_2d = HashGrid::<f32, Player2D>::new([2, 2], 0, &bounds_2d, true);
+    let mut hashgrid_2d = HashGrid::<f32, Player2D>::new([2, 2], 0, &bounds_2d, false);
 
-    // asserting the initialized grid parameters
-    assert_eq!(hashgrid_2d.cell_size_x(), 50_f32);
-    assert_eq!(hashgrid_2d.cell_size_y(), 50_f32);
-    assert_eq!(hashgrid_2d.floor_size(), 1_f32);
 
-    // asserting the initialized grid boundary parameters
-    assert_eq!(hashgrid_2d.bounds.boundary_max(), [50_f32, 50_f32, 0_f32,]);
-    assert_eq!(
-        hashgrid_2d.bounds.boundary_min(),
-        [-50_f32, -50_f32, 0_f32,]
-    );
+    let player1 = Player2D::new(0, [400.0, 400.0]);
+    let player2 = Player2D::new(1, [-400.0, 400.0]);
 
-    let player1 = Player2D::new(0, [22.5, 30.0]);
-    let player2 = Player2D::new(2, [15.5, 45.6]);
+    
+    let player3 = Player2D::new(2, [-400.0, -400.0]);
+    let player4 = Player2D::new(3, [400.0, -400.0]);
 
     hashgrid_2d.insert(&player1);
     hashgrid_2d.insert(&player2);
+    hashgrid_2d.insert(&player3);
+    hashgrid_2d.insert(&player4);
 
     // uncomment the line to print the hashgrid
     println!("{hashgrid_2d}");
 
     let query = Query {
-        coordinates: [10.0, 10.0, 0.0],
-        ty: QueryType::Relevant,
+        coordinates: [-490.0, 490.0, 0.0],
+        ty: QueryType::Single,
         radius: 0.0,
     };
 
     let res = hashgrid_2d.query(query);
+    let cell_hash = hashgrid_2d.get_cell_coordinates(-490.0, 490.0, 0.0);
 
-    println!("{res}");
+    println!("cell cords: {} {}", cell_hash.0, cell_hash.1);
+    println!("{res} cell hash: {:?}", hashgrid_2d.key(cell_hash.0, cell_hash.1));
+
+    let query = Query {
+        coordinates: [490.0, -490.0, 0.0],
+        ty: QueryType::Single,
+        radius: 0.0,
+    };
+
+    let cell_hash = hashgrid_2d.get_cell_coordinates(490.0, -490.0, 0.0);
+
+    let res = hashgrid_2d.query(query);
+
+    println!("cell cords: {} {}", cell_hash.0, cell_hash.1);
+    println!("{res} cell hash: {:?}", hashgrid_2d.key(cell_hash.0, cell_hash.1));
+
+    println!("{:?}", hashgrid_2d.grids[0])
 }

@@ -48,7 +48,10 @@ pub type DefaultDx = u32;
 /// * `Hx (HashIndex type):` Defines the type to be used for hashes for data search in grid, default type for `Hx` is `u64`
 ///
 #[derive(Debug)]
-pub struct HashGrid<'a, F, T, Hx = DefaultHx, Dx = DefaultDx> {
+pub struct HashGrid<'a, F, T, Hx = DefaultHx, Dx = DefaultDx>
+where 
+    F: Float + FromPrimitive + ToPrimitive,
+{
     pub grids: Floors<Grid<Hx, Vec<DataRef<'a, T>>>>,
     pub params: GridParameters<F>,
     pub bounds: GridBoundary<F>,
@@ -197,68 +200,81 @@ where
         T: Entity<Id, F>,
         C: Coordinate<F>,
     {
-        let radius_x = (F::from_u32(self.xcells()).unwrap() * query.radius())
-            .max(F::one())
-            .ceil()
-            .to_i32()
-            .unwrap();
-        let radius_y = (F::from_u32(self.ycells()).unwrap() * query.radius())
-            .max(F::one())
-            .ceil()
-            .to_i32()
-            .unwrap();
-        let radius_f = (F::from_usize(self.floors()).unwrap() * query.radius())
-            .max(F::one())
-            .ceil()
-            .to_i32()
-            .unwrap();
+        // let radius_x = (F::from_u32(self.xcells()).unwrap() * query.radius())
+        //     .max(F::one())
+        //     .ceil()
+        //     .to_i32()
+        //     .unwrap();
+        // let radius_y = (F::from_u32(self.ycells()).unwrap() * query.radius())
+        //     .max(F::one())
+        //     .ceil()
+        //     .to_i32()
+        //     .unwrap();
+        // let radius_f = (F::from_usize(self.floors()).unwrap() * query.radius())
+        //     .max(F::one())
+        //     .ceil()
+        //     .to_i32()
+        //     .unwrap();
 
-        let (cx, cy, floor) = self.get_cell_coordinates(query.x(), query.y(), query.z());
+        // let (cx, cy, floor) = self.get_cell_coordinates(query.x(), query.y(), query.z());
 
-        let base_cx = cx as i32;
-        let base_cy = cy as i32;
-        let base_floor = floor as i32;
+        // let base_cx = cx as i32;
+        // let base_cy = cy as i32;
+        // let base_floor = floor as i32;
 
-        let range_x = (base_cx - radius_x).max(0)..=(base_cx + radius_x).min(self.xcells() as i32);
-        let range_y = (base_cy - radius_y).max(0)..=(base_cy + radius_y).min(self.ycells() as i32);
-        let range_z =
-            (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32 - 1);
+        // let range_x = (base_cx - radius_x).max(0)..=(base_cx + radius_x).min(self.xcells() as i32);
+        // let range_y = (base_cy - radius_y).max(0)..=(base_cy + radius_y).min(self.ycells() as i32);
+        // let range_z =
+        //     (base_floor - radius_f).max(0)..=(base_floor + radius_f).min(self.floors() as i32 - 1);
 
-        let relevant_indices = range_x
-            .clone()
-            .flat_map(|dx| {
-                let range_z = range_z.clone();
-                range_y.clone().flat_map(move |dy| {
-                    range_z
-                        .clone()
-                        .map(move |dz| (dx as u32, dy as u32, dz as usize))
-                })
-            })
-            .map(|(dx, dy, df)| (self.key(dx, dy), df));
+        // let relevant_indices = range_x
+        //     .clone()
+        //     .flat_map(|dx| {
+        //         let range_z = range_z.clone();
+        //         range_y.clone().flat_map(move |dy| {
+        //             range_z
+        //                 .clone()
+        //                 .map(move |dz| (dx as u32, dy as u32, dz as usize))
+        //         })
+        //     })
+        //     .map(|(dx, dy, df)| (self.key(dx, dy), df));
 
         let mut result = QueryResult {
             query,
+            cells: Vec::new(),
             data: Vec::new(),
         };
 
         match query.query_type() {
-            QueryType::Find(id) => {
-                for (hashindex, floor) in relevant_indices {
-                    if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
-                        if let Some(&entity) = d_list.iter().find(|&&d| d.id() == id) {
-                            result.data.push(entity);
-                            break;
-                        }
-                    }
+            QueryType::Single => {
+                let (x, y, z) = query.coordinates.xyz();
+                let (x_index, y_index, floor) = self.get_cell_coordinates(x, y, z);
+                let hashindex = self.key(x_index, y_index);
+
+                if let Some(data) = self.grids[floor].get(&hashindex.key()) {
+                    result.cells.push(hashindex.key().to_usize().unwrap());
+                    result.data.extend_from_slice(data);
                 }
-            }
-            QueryType::Relevant => {
-                for (hashindex, floor) in relevant_indices {
-                    if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
-                        result.data.extend_from_slice(d_list);
-                    }
-                }
-            }
+            },
+            QueryType::Search(id) => {
+                // for (hashindex, floor) in relevant_indices {
+                //     if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
+                //         if let Some(&entity) = d_list.iter().find(|&&d| d.id() == id) {
+                //             result.cells.push(hashindex.key().to_usize().unwrap());
+                //             result.data.push(entity);
+                //             break;
+                //         }
+                //     }
+                // }
+            },
+            QueryType::Neighbour(radius) => {
+                // for (hashindex, floor) in relevant_indices {
+                //     if let Some(d_list) = self.grids[floor].get(&hashindex.key()) {
+                //         result.cells.push(hashindex.key().to_usize().unwrap());
+                //         result.data.extend_from_slice(d_list);
+                //     }
+                // }
+            },
         }
 
         result
@@ -344,8 +360,8 @@ where
     pub fn get_cell_coordinates(&self, x: F, y: F, z: F) -> (u32, u32, usize) {
         // Normalizing the x and y component according to cell size to find the
         // cell coordinates inside the grid
-        let cx = (x / self.cell_size_x()).floor().abs().to_u32().unwrap();
-        let cy = (y / self.cell_size_y()).floor().abs().to_u32().unwrap();
+        let cx = ((x + self.bounds.boundary_max().x()) / self.cell_size_x()).floor().to_u32().unwrap();
+        let cy = ((y + self.bounds.boundary_max().y()) / self.cell_size_y()).floor().to_u32().unwrap();
 
         // Getting the floor index from the z component
         let floor = (z / self.floor_size()).floor().to_usize().unwrap();
@@ -364,7 +380,7 @@ where
     ///
     /// Reutrns the unique cantor number calculate from the cell coordinates as [`HashIndex`]
     pub fn key(&self, k1: u32, k2: u32) -> HashIndex<Hx> {
-        (((k1 + k2) * (k1 + k2 + 1)) / 2 + k2).into()
+        ((((k1 + k2) * (k1 + k2 + 1)) / 2) + k2).into()
     }
 
     /// Cell size defined for cells on x-axis

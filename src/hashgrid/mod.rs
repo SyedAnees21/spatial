@@ -6,9 +6,10 @@ use std::{
     hash::Hash,
 };
 
-pub use grid::HashGrid;
-
 mod grid;
+mod viewer;
+
+pub use grid::HashGrid;
 
 type DefaultFloat = f32;
 
@@ -42,7 +43,7 @@ impl CellsPerAxis {
 /// Holds the cell size for every individual cell on each axis, These sizes are calculated
 /// during the grid initialization depending upon the [`CellsPerAxis`] and grid bounds
 #[derive(Debug)]
-pub struct CellSizes<F> {
+pub struct CellSizes<F: Float + FromPrimitive + ToPrimitive> {
     x_size: F,
     y_size: F,
     floor_size: F,
@@ -100,7 +101,7 @@ impl<F: Float + FromPrimitive + ToPrimitive> Coordinate<F> for [F; 3] {
 
 /// Stores the grid information regarding the cell sizes and number of cells per axis
 #[derive(Debug)]
-pub struct GridParameters<F> {
+pub struct GridParameters<F: Float + FromPrimitive + ToPrimitive> {
     pub cell_per_axis: CellsPerAxis,
     pub cell_sizes: CellSizes<F>,
 }
@@ -114,15 +115,17 @@ pub struct GridParameters<F> {
 /// `QueryType` is one of the major constituent of the main [`Query`]
 #[derive(Debug, Clone, Copy)]
 pub enum QueryType<Id> {
-    Find(Id),
-    Relevant,
+    Single,
+    Search(Id),
+    Neighbour(f32),
 }
 
 impl<Id: Display> fmt::Display for QueryType<Id> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            QueryType::Find(id) => write!(f, "Find({})", id),
-            QueryType::Relevant => write!(f, "Relevant"),
+            QueryType::Single => write!(f, "Single"),
+            QueryType::Search(id) => write!(f, "Search(ID= {})", id),
+            QueryType::Neighbour(radius) => write!(f, "Neighbours({radius})"),
         }
     }
 }
@@ -303,6 +306,7 @@ where
 #[derive(Debug)]
 pub struct QueryResult<'a, F, Id, T, C> {
     query: Query<F, Id, C>,
+    cells: Vec<usize>,
     data: Vec<DataRef<'a, T>>,
 }
 
@@ -319,6 +323,10 @@ where
     pub fn data(&self) -> &[DataRef<'a, T>] {
         &self.data
     }
+
+    pub fn cells(&self) -> &[usize] {
+        &self.cells
+    }
 }
 
 impl<'a, F, Id, T, C> fmt::Display for QueryResult<'a, F, Id, T, C>
@@ -331,9 +339,10 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "QueryResult [\n  {}\n  Data: {:?}\n]",
+            "QueryResult [\n  {}\n  Data: {:?}\n  Cells: {:?}\n]",
             self.query(),
-            self.data()
+            self.data(),
+            self.cells()
         )
     }
 }
@@ -400,6 +409,7 @@ where
 /// // HashIndex type
 /// let hashgrid = HashGrid::<f32, (), u32>::new([2,2], 2, &boundary, false);
 /// ```
+#[derive(Debug)]
 pub struct HashIndex<T: PrimInt + FromPrimitive + ToPrimitive + Hash>(T);
 
 impl<T> HashIndex<T>
@@ -479,17 +489,12 @@ where
     where
         U: Coordinate<F>,
     {
-        let half_size = [
-            self.size().x().div(F::from_f32(2.0).unwrap()),
-            self.size().y().div(F::from_f32(2.0).unwrap()),
-            self.size().z().div(F::from_f32(2.0).unwrap()),
-        ];
-
-        let dx = point.x() - self.centre().x().abs();
-        let dy = point.y() - self.centre().y().abs();
-        let dz = point.z() - self.centre().z().abs();
-
-        dx <= half_size[0] && dy <= half_size[1] && dz <= half_size[2]
+        point.x() <= self.boundary_max().x() && 
+        point.y() <= self.boundary_max().y() && 
+        point.z() <= self.boundary_max().z() && 
+        point.x() >= self.boundary_min().x() &&       
+        point.y() >= self.boundary_min().y() &&       
+        point.z() >= self.boundary_min().z()
     }
 
     fn boundary_max(&self) -> Self::T {
