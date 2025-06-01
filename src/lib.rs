@@ -5,6 +5,8 @@ use traits::Float;
 
 pub mod hashgrid;
 mod quad;
+mod traits;
+
 mod tests;
 
 #[derive(Debug)]

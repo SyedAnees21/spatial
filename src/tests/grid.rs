@@ -1,7 +1,7 @@
 use core::f32;
 
 use crate::{
-    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType}, vertex,
+    hashgrid::{Boundary, Coordinate, Entity, HashGrid, Query, QueryType},
     // traits::{Float, FromPrimitive, Primitive, ToPrimitive},
 };
 
@@ -166,20 +166,3 @@ fn data_insertion_2d() {
 // fn add_two_sqrt<FLOAT: Float>(v1: FLOAT, v2: FLOAT) -> FLOAT {
 //     v1.sqrt() + v2.sqrt()
 // }
-
-#[test]
-fn generic_floats() {
-    // let a: f32 = get_pi();
-    // let b = get_pi::<f64>();
-
-    // let c = add_two_sqrt(2.0_f32, 3.0_f32);
-    // let d = add_two_sqrt(2.0, 3.0);
-
-    // println!("a:{}\nb:{}\nc:{}\nd:{}", a, b, c, d);
-    use crate::Vertex;
-    let a = vertex!(20.0,2,3);
-    let b = vertex!(1,2);
-    let c = vertex!();
-
-    println!("{:?}", a);
-}
