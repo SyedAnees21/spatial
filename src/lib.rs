@@ -1,7 +1,7 @@
 use std::ops::{Add, Sub};
 
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
-use traits::Float;
+pub use traits::Float;
 
 pub mod hashgrid;
 mod quad;
@@ -25,7 +25,7 @@ impl Vector2D {
     }
 
     pub fn y(&self) -> f64 {
-        self.0
+        self.1
     }
 
     pub fn xy(&self) -> (f64, f64) {
@@ -96,6 +96,14 @@ impl Bounds2D {
             && point.x() <= self.max.x()
             && point.y() <= self.max.y()
     }
+}
+
+pub type EntityID = u64;
+
+pub trait IsEntity {
+    fn id(&self) -> EntityID;
+    fn position(&self) -> Vector2D;
+    fn bounding_box(&self) -> Bounds2D;
 }
 
 pub trait HasPosition {

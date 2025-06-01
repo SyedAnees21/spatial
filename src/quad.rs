@@ -1,23 +1,19 @@
-use std::{marker::PhantomData, ops::Index};
+use crate::{Bounds2D, HasBounds, HasPosition, IsEntity, SpatialError, Vector2D};
 
-use crate::{Bounds2D, HasBounds, HasPosition, SpatialError, Vector2D};
-
-pub const MAX_QUADS: usize = 4;
-
+const MAX_QUADS: usize = 4;
 type Quadrant<T> = Box<QuadTreeNode<T>>;
-
 type Entities<'a, T> = Vec<&'a T>;
 type LevelCount = usize;
 
 pub struct QuadTree<Entity>
 where
-    Entity: HasBounds + HasPosition,
+    Entity: IsEntity + Clone,
 {
     root: QuadTreeNode<Entity>,
     capacity: usize,
 }
 
-impl<Entity: HasBounds + HasPosition + Clone> QuadTree<Entity> {
+impl<Entity: IsEntity + Clone> QuadTree<Entity> {
     pub fn new(
         boundary_min: Vector2D,
         boundary_max: Vector2D,
@@ -55,9 +51,19 @@ impl<Entity: HasBounds + HasPosition + Clone> QuadTree<Entity> {
     pub fn iter_nodes<'tree>(&'tree self) -> Nodes<'tree, Entity> {
         Nodes::new(&self.root)
     }
+
+    pub fn clear(&mut self) -> Vec<Entity> {
+        let mut return_container = vec![];
+        self.root.drain(&mut return_container);
+
+        let boundary = self.root.boundary;
+        self.root = QuadTreeNode::new(boundary.min, boundary.max, self.capacity, 0);
+
+        return_container
+    }
 }
 
-impl<Entity: HasBounds + HasPosition + Clone> QuadTree<Entity> {
+impl<Entity: IsEntity + Clone> QuadTree<Entity> {
     pub fn query_bounds(
         &self,
         bounds_center: Vector2D,
@@ -126,7 +132,7 @@ impl<Entity: HasBounds + HasPosition + Clone> QuadTree<Entity> {
 
 pub struct QuadTreeNode<Entity>
 where
-    Entity: HasBounds + HasPosition,
+    Entity: IsEntity + Clone,
 {
     depth: usize,
     capacity: usize,
@@ -137,7 +143,7 @@ where
 
 impl<Entity> QuadTreeNode<Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     fn new(min: Vector2D, max: Vector2D, capacity: usize, depth: usize) -> Self {
         Self {
@@ -279,11 +285,21 @@ where
             Box::new(QuadTreeNode::with_bounds(sw, self.capacity, new_depth)),
         ])
     }
+
+    fn drain(&mut self, out: &mut Vec<Entity>) {
+        out.extend(self.items.drain(..));
+
+        if let Some(ref mut quadrants) = self.quadrants {
+            for quad in quadrants.iter_mut() {
+                quad.drain(out);
+            }
+        }
+    }
 }
 
 pub struct Levels<'a, Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     root: &'a QuadTreeNode<Entity>,
     current_level: LevelCount,
@@ -292,7 +308,7 @@ where
 
 impl<'a, Entity> Levels<'a, Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     fn new(root: &'a QuadTreeNode<Entity>) -> Self {
         let max_depth = root.max_subtree_depth();
@@ -328,7 +344,7 @@ where
 
 impl<'a, Entity> Iterator for Levels<'a, Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     type Item = Entities<'a, Entity>;
 
@@ -350,14 +366,14 @@ pub struct NodeInfo<'a, Entity>(LevelCount, &'a Bounds2D, &'a [Entity]);
 
 impl<'a, Entity> From<&'a QuadTreeNode<Entity>> for NodeInfo<'a, Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     fn from(value: &'a QuadTreeNode<Entity>) -> Self {
         Self(value.depth, &value.boundary, &value.items)
     }
 }
 
-impl<'a, Entity: HasBounds + HasPosition + Clone> NodeInfo<'a, Entity> {
+impl<'a, Entity: IsEntity + Clone> NodeInfo<'a, Entity> {
     pub fn node_level(&self) -> LevelCount {
         self.0
     }
@@ -373,12 +389,12 @@ impl<'a, Entity: HasBounds + HasPosition + Clone> NodeInfo<'a, Entity> {
 
 pub struct Nodes<'a, Entity>
 where
-    Entity: HasBounds + HasPosition + Clone,
+    Entity: IsEntity + Clone,
 {
     stack: Vec<&'a QuadTreeNode<Entity>>,
 }
 
-impl<'a, Entity: HasBounds + HasPosition + Clone> Nodes<'a, Entity> {
+impl<'a, Entity: IsEntity + Clone> Nodes<'a, Entity> {
     fn new(root_node: &'a QuadTreeNode<Entity>) -> Self {
         Self {
             stack: vec![root_node],
@@ -386,7 +402,7 @@ impl<'a, Entity: HasBounds + HasPosition + Clone> Nodes<'a, Entity> {
     }
 }
 
-impl<'a, Entity: HasBounds + HasPosition + Clone> Iterator for Nodes<'a, Entity> {
+impl<'a, Entity: IsEntity + Clone> Iterator for Nodes<'a, Entity> {
     type Item = NodeInfo<'a, Entity>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(node) = self.stack.pop() {

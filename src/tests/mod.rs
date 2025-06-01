@@ -2,7 +2,7 @@
 
 use num_traits::identities;
 
-use crate::{quad::QuadTree, Bounds2D, HasBounds, HasPosition, SpatialError, Vector2D};
+use crate::{quad::QuadTree, Bounds2D, HasBounds, HasPosition, IsEntity, SpatialError, Vector2D};
 
 mod boundary;
 mod grid;
@@ -38,19 +38,20 @@ impl From<(u64, Bounds2D, Vector2D)> for Player {
     }
 }
 
-impl HasBounds for Player {
+impl IsEntity for Player {
+    fn id(&self) -> crate::EntityID {
+        self.id
+    }
+
+    fn position(&self) -> Vector2D {
+        self.position
+    }
+
     fn bounding_box(&self) -> Bounds2D {
         self.bounds
     }
 }
 
-impl HasPosition for Player {
-    fn position(&self) -> Vector2D {
-        self.position
-    }
-}
-
-type PredFn = fn(Vector2D, &Player) -> bool;
 
 #[test]
 fn quadtree_smoke() -> Result<(), SpatialError> {
@@ -91,6 +92,16 @@ fn quadtree_smoke() -> Result<(), SpatialError> {
     assert!(query_result.is_some());
 
     println!("{:?}", query_result);
+
+    for node in quadtree.iter_levels() {
+        println!("\n{:?}", node)
+    }
+
+    for node in quadtree.iter_nodes() {
+        println!("\n{:?}", node)
+    }
+
+    let entities = quadtree.clear();
 
     for node in quadtree.iter_levels() {
         println!("\n{:?}", node)
