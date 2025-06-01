@@ -1,6 +1,7 @@
 use std::ops::{Add, Sub};
 
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
+pub use quad::QuadTree;
 pub use traits::Float;
 
 pub mod hashgrid;
@@ -73,7 +74,10 @@ impl Bounds2D {
 
     pub fn from_center_size(center: Vector2D, size: Vector2D) -> Self {
         let half_size = size.div(2.0);
-        Self { min: center - half_size, max: center + half_size }
+        Self {
+            min: center - half_size,
+            max: center + half_size,
+        }
     }
 
     pub fn contains(&self, other: &Self) -> bool {

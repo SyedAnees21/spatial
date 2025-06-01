@@ -1,4 +1,4 @@
-use crate::{Bounds2D, HasBounds, HasPosition, IsEntity, SpatialError, Vector2D};
+use crate::{Bounds2D, IsEntity, SpatialError, Vector2D};
 
 const MAX_QUADS: usize = 4;
 type Quadrant<T> = Box<QuadTreeNode<T>>;
