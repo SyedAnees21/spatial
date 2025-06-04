@@ -1,4 +1,4 @@
-use crate::{Bounds2D, IsEntity, SpatialError, Vector2D};
+use crate::{Bounds2D, SpatialEntity, SpatialError, Vector2D};
 
 const MAX_QUADS: usize = 4;
 type Quadrant<T> = Box<QuadTreeNode<T>>;
@@ -7,13 +7,13 @@ type LevelCount = usize;
 
 pub struct QuadTree<Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     root: QuadTreeNode<Entity>,
     capacity: usize,
 }
 
-impl<Entity: IsEntity + Clone> QuadTree<Entity> {
+impl<Entity: SpatialEntity> QuadTree<Entity> {
     pub fn new(
         boundary_min: Vector2D,
         boundary_max: Vector2D,
@@ -63,7 +63,7 @@ impl<Entity: IsEntity + Clone> QuadTree<Entity> {
     }
 }
 
-impl<Entity: IsEntity + Clone> QuadTree<Entity> {
+impl<Entity: SpatialEntity> QuadTree<Entity> {
     pub fn query_bounds(
         &self,
         bounds_center: Vector2D,
@@ -132,7 +132,7 @@ impl<Entity: IsEntity + Clone> QuadTree<Entity> {
 
 pub struct QuadTreeNode<Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     depth: usize,
     capacity: usize,
@@ -143,7 +143,7 @@ where
 
 impl<Entity> QuadTreeNode<Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     fn new(min: Vector2D, max: Vector2D, capacity: usize, depth: usize) -> Self {
         Self {
@@ -299,7 +299,7 @@ where
 
 pub struct Levels<'a, Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     root: &'a QuadTreeNode<Entity>,
     current_level: LevelCount,
@@ -308,7 +308,7 @@ where
 
 impl<'a, Entity> Levels<'a, Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     fn new(root: &'a QuadTreeNode<Entity>) -> Self {
         let max_depth = root.max_subtree_depth();
@@ -344,7 +344,7 @@ where
 
 impl<'a, Entity> Iterator for Levels<'a, Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     type Item = Entities<'a, Entity>;
 
@@ -366,14 +366,14 @@ pub struct NodeInfo<'a, Entity>(LevelCount, &'a Bounds2D, &'a [Entity]);
 
 impl<'a, Entity> From<&'a QuadTreeNode<Entity>> for NodeInfo<'a, Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     fn from(value: &'a QuadTreeNode<Entity>) -> Self {
         Self(value.depth, &value.boundary, &value.items)
     }
 }
 
-impl<'a, Entity: IsEntity + Clone> NodeInfo<'a, Entity> {
+impl<'a, Entity: SpatialEntity> NodeInfo<'a, Entity> {
     pub fn node_level(&self) -> LevelCount {
         self.0
     }
@@ -389,12 +389,12 @@ impl<'a, Entity: IsEntity + Clone> NodeInfo<'a, Entity> {
 
 pub struct Nodes<'a, Entity>
 where
-    Entity: IsEntity + Clone,
+    Entity: SpatialEntity,
 {
     stack: Vec<&'a QuadTreeNode<Entity>>,
 }
 
-impl<'a, Entity: IsEntity + Clone> Nodes<'a, Entity> {
+impl<'a, Entity: SpatialEntity> Nodes<'a, Entity> {
     fn new(root_node: &'a QuadTreeNode<Entity>) -> Self {
         Self {
             stack: vec![root_node],
@@ -402,7 +402,7 @@ impl<'a, Entity: IsEntity + Clone> Nodes<'a, Entity> {
     }
 }
 
-impl<'a, Entity: IsEntity + Clone> Iterator for Nodes<'a, Entity> {
+impl<'a, Entity: SpatialEntity> Iterator for Nodes<'a, Entity> {
     type Item = NodeInfo<'a, Entity>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(node) = self.stack.pop() {

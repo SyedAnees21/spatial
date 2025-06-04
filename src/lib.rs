@@ -7,6 +7,7 @@ pub use traits::Float;
 pub mod hashgrid;
 mod quad;
 mod traits;
+mod codec;
 
 mod tests;
 
@@ -104,7 +105,7 @@ impl Bounds2D {
 
 pub type EntityID = u64;
 
-pub trait IsEntity {
+pub trait SpatialEntity: Clone {
     fn id(&self) -> EntityID;
     fn position(&self) -> Vector2D;
     fn bounding_box(&self) -> Bounds2D;

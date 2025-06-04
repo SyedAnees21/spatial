@@ -2,10 +2,13 @@
 
 use num_traits::identities;
 
-use crate::{quad::QuadTree, Bounds2D, HasBounds, HasPosition, IsEntity, SpatialError, Vector2D};
+use crate::{
+    quad::QuadTree, Bounds2D, HasBounds, HasPosition, SpatialEntity, SpatialError, Vector2D,
+};
 
 mod boundary;
 mod grid;
+mod base4;
 
 #[test]
 fn into_coordinates() {
@@ -38,7 +41,7 @@ impl From<(u64, Bounds2D, Vector2D)> for Player {
     }
 }
 
-impl IsEntity for Player {
+impl SpatialEntity for Player {
     fn id(&self) -> crate::EntityID {
         self.id
     }
@@ -51,7 +54,6 @@ impl IsEntity for Player {
         self.bounds
     }
 }
-
 
 #[test]
 fn quadtree_smoke() -> Result<(), SpatialError> {
@@ -113,3 +115,4 @@ fn quadtree_smoke() -> Result<(), SpatialError> {
 
     Ok(())
 }
+
