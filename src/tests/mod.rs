@@ -3,12 +3,13 @@
 use num_traits::identities;
 
 use crate::{
-    quad::QuadTree, Bounds2D, HasBounds, HasPosition, SpatialEntity, SpatialError, Vector2D,
+    quad::QuadTree, Bounds2D, IsEntity, SpatialError, Vector2D,
 };
 
 mod boundary;
 mod grid;
 mod base4;
+mod geometry;
 
 #[test]
 fn into_coordinates() {
@@ -41,7 +42,7 @@ impl From<(u64, Bounds2D, Vector2D)> for Player {
     }
 }
 
-impl SpatialEntity for Player {
+impl IsEntity for Player {
     fn id(&self) -> crate::EntityID {
         self.id
     }
