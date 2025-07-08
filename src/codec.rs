@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Index};
 
 type Base4Blocks = VecDeque<Base4>;
 
@@ -85,7 +85,19 @@ impl Base4Int {
         let codec_index = index / 64;
         let peek_index = index % 64;
 
-        self.0[codec_index].peek_at::<T>(peek_index)
+        self[codec_index].peek_at::<T>(peek_index)
+    }
+
+    pub fn peek_all<T>(&self) -> Vec<T>
+    where
+        T: From<u8> + Copy,
+    {
+        let mut ints = Vec::with_capacity(self.total_len());
+        for codec_idx in 0..self.total_blocks() {
+            ints.extend_from_slice(&self[codec_idx].peek_all());
+        }
+
+        ints
     }
 
     pub fn total_len(&self) -> usize {
@@ -94,6 +106,13 @@ impl Base4Int {
 
     pub fn total_blocks(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl Index<usize> for Base4Int {
+    type Output = Base4;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
 }
 
@@ -165,5 +184,17 @@ impl Base4 {
 
         let shift_pos = 2 * (self.size - index - 1);
         T::from(((self.encoded >> shift_pos) & 0b11) as u8)
+    }
+
+    pub fn peek_all<T>(&self) -> Vec<T>
+    where
+        T: From<u8> + Copy,
+    {
+        let mut ints = Vec::with_capacity(self.size);
+        for index in 0..self.size {
+            ints.push(self.peek_at(index));
+        }
+
+        ints
     }
 }

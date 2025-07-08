@@ -1,10 +1,10 @@
+use core::panic;
 use std::collections::HashMap;
 
-use crate::{codec::Base4Int, ensure, Bounds2D, EntityID, IsEntity, SpatialError, Vector2D};
+use crate::{codec::Base4Int, ensure, EntityID, Geometry, IsEntity, SpatialError};
 
 const MAX_QUADS: usize = 4;
 type Quadrant = Box<QuadTreeNode>;
-type Entities<'a, T> = Vec<&'a T>;
 type LevelCount = usize;
 type LeafPath = Base4Int;
 type NodeIndex = u8;
@@ -22,6 +22,13 @@ impl<E: IsEntity> EntityMap<E> {
 
     pub fn get_entity(&self, id: &EntityID) -> &E {
         &self.0.get(id).unwrap().0
+    }
+
+    pub fn get_path(&self, id: EntityID) -> Option<Vec<NodeIndex>> {
+        if let Some((_, p)) = self.0.get(&id) {
+            return Some(p.peek_all());
+        }
+        None
     }
 
     pub fn get_entity_path_mut(&mut self, id: EntityID) -> Option<&mut (E, LeafPath)> {
@@ -42,11 +49,14 @@ where
 }
 
 impl<E: IsEntity> QuadTree<E> {
-    pub fn new(
-        boundary_min: Vector2D,
-        boundary_max: Vector2D,
+    pub fn new<T>(
+        boundary_min: (T, T),
+        boundary_max: (T, T),
         capacity: usize,
-    ) -> Result<Self, SpatialError> {
+    ) -> Result<Self, SpatialError>
+    where
+        T: Into<f64> + Copy + PartialEq + PartialOrd,
+    {
         ensure!(capacity > 0, SpatialError::InvalidCapacity);
         ensure!(boundary_min < boundary_max, SpatialError::InvalidBounds);
 
@@ -58,12 +68,11 @@ impl<E: IsEntity> QuadTree<E> {
 
     pub fn insert(&mut self, entity: E) -> Result<bool, SpatialError> {
         ensure!(
-            self.root.boundary.contains(&entity.bounding_box()),
+            self.root.boundary.contains(entity.bounds()),
             SpatialError::OutOfBounds
         );
 
         let id = entity.id();
-
         self.map.insert_entity(id, entity, LeafPath::new());
 
         Ok(self.root.insert(id, &mut self.map, 0))
@@ -73,11 +82,11 @@ impl<E: IsEntity> QuadTree<E> {
         self.root.max_subtree_depth() + 1
     }
 
-    pub fn iter_levels(&self) -> Levels<'_> {
+    pub fn iterate_levels(&self) -> Levels<'_> {
         Levels::new(&self.root)
     }
 
-    pub fn iter_nodes(&self) -> Nodes<'_> {
+    pub fn iterate_nodes(&self) -> Nodes<'_> {
         Nodes::new(&self.root)
     }
 
@@ -87,76 +96,32 @@ impl<E: IsEntity> QuadTree<E> {
 
         let boundary = self.root.boundary;
         let capacity = self.root.capacity;
-        self.root = QuadTreeNode::new(boundary.min, boundary.max, capacity, 0);
+        self.root = QuadTreeNode::with_geometry(boundary, capacity, 0);
 
         out
     }
-}
 
-impl<Entity: IsEntity> QuadTree<Entity> {
-    pub fn query_bounds(
-        &self,
-        bounds_center: Vector2D,
-        bounds_size: Vector2D,
-    ) -> Option<Entities<Entity>> {
-        let search_bounds = Bounds2D::from_center_size(bounds_center, bounds_size);
-        let mut collector = vec![];
-        self.root
-            .query_within_bounds(&search_bounds, &self.map, &mut collector, &|_, _| true);
-
-        if collector.is_empty() {
-            return None;
-        }
-        Some(collector)
+    pub fn entity_path_in_tree(&self, id: EntityID) -> Option<Vec<u8>> {
+        self.map.get_path(id)
     }
 
-    pub fn query_point(&self, point: Vector2D) -> Option<Entities<Entity>> {
+    pub fn query(&self, query_type: Geometry) -> Entities<'_, E> {
         let mut collector = vec![];
         self.root
-            .query_with_point(point, &self.map, &mut collector, &|_, _| true);
+            .inner_query(query_type, &self.map, &mut collector, &|_, _| true);
 
-        if collector.is_empty() {
-            return None;
-        }
-        Some(collector)
+        Entities::new(&self.map, collector)
     }
 
-    pub fn query_bounds_and_filter<F>(
-        &self,
-        bounds_center: Vector2D,
-        bounds_size: Vector2D,
-        predicate: F,
-    ) -> Option<Entities<Entity>>
+    pub fn query_and_filter<F>(&self, query_type: Geometry, predicate: F) -> Entities<'_, E>
     where
-        F: Fn(&Bounds2D, &Entity) -> bool,
-    {
-        let search_bounds = Bounds2D::from_center_size(bounds_center, bounds_size);
-        let mut collector = vec![];
-        self.root
-            .query_within_bounds(&search_bounds, &self.map, &mut collector, &predicate);
-
-        if collector.is_empty() {
-            return None;
-        }
-        Some(collector)
-    }
-
-    pub fn query_point_and_filter<F>(
-        &self,
-        point: Vector2D,
-        predicate: F,
-    ) -> Option<Entities<Entity>>
-    where
-        F: Fn(Vector2D, &Entity) -> bool,
+        F: Fn(Geometry, &E) -> bool,
     {
         let mut collector = vec![];
         self.root
-            .query_with_point(point, &self.map, &mut collector, &predicate);
+            .inner_query(query_type, &self.map, &mut collector, &predicate);
 
-        if collector.is_empty() {
-            return None;
-        }
-        Some(collector)
+        Entities::new(&self.map, collector)
     }
 }
 
@@ -164,14 +129,17 @@ pub struct QuadTreeNode {
     depth: usize,
     capacity: usize,
     items: Vec<EntityID>,
-    boundary: Bounds2D,
+    boundary: Geometry,
     quadrants: Option<[Quadrant; MAX_QUADS]>,
 }
 
 impl QuadTreeNode {
-    fn new(min: Vector2D, max: Vector2D, capacity: usize, depth: usize) -> Self {
+    fn new<T>(min: (T, T), max: (T, T), capacity: usize, depth: usize) -> Self
+    where
+        T: Into<f64> + Copy,
+    {
         Self {
-            boundary: Bounds2D::new(min, max),
+            boundary: Geometry::rect_from_min_max(min, max),
             items: Vec::with_capacity(capacity),
             capacity,
             depth,
@@ -179,10 +147,10 @@ impl QuadTreeNode {
         }
     }
 
-    fn with_bounds(boundary: Bounds2D, capacity: usize, depth: usize) -> Self {
+    fn with_geometry(geometry: Geometry, capacity: usize, depth: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
-            boundary,
+            boundary: geometry,
             capacity,
             depth,
             quadrants: None,
@@ -204,64 +172,40 @@ impl QuadTreeNode {
         self.depth
     }
 
-    fn query_with_point<'t, E, F>(
-        &'t self,
-        point: Vector2D,
+    fn inner_query<'t, E, F>(
+        &self,
+        query_type: Geometry,
         map: &'t EntityMap<E>,
-        collector: &mut Vec<&'t E>,
+        collector: &mut Vec<EntityID>,
+        // collector: &mut Vec<&'t E>,
         predicate: &F,
     ) where
-        F: Fn(Vector2D, &E) -> bool,
+        F: Fn(Geometry, &E) -> bool,
         E: IsEntity,
     {
-        if !self.boundary.contains_point(point) {
-            return;
-        }
+        let contains_or_intersects = match query_type {
+            Geometry::Point { x: _, y: _ } => self.boundary.contains(query_type),
+            _ => self.boundary.intersects(query_type),
+        };
 
-        for id in self.items.iter() {
-            let entity = map.get_entity(id);
-            if entity.bounding_box().contains_point(point) {
-                if predicate(point, entity) {
-                    collector.push(entity);
+        if contains_or_intersects {
+            for id in self.items.iter() {
+                let entity = map.get_entity(id);
+
+                let contains_or_intersects = match query_type {
+                    Geometry::Point { x: _, y: _ } => entity.contains_geometry(query_type),
+                    _ => entity.intersects_geometry(query_type),
+                };
+
+                if contains_or_intersects && predicate(query_type, entity) {
+                    collector.push(*id);
                 }
             }
         }
 
-        if !self.is_leaf() {
-            let quadrants = self.quadrants.as_ref().unwrap();
-            for quad in quadrants.iter() {
-                quad.query_with_point(point, map, collector, predicate);
-            }
-        }
-    }
-
-    fn query_within_bounds<'t, E, F>(
-        &'t self,
-        bounds: &Bounds2D,
-        map: &'t EntityMap<E>,
-        collector: &mut Vec<&'t E>,
-        predicate: &F,
-    ) where
-        F: Fn(&Bounds2D, &E) -> bool,
-        E: IsEntity,
-    {
-        if !self.boundary.intersects(&bounds) {
-            return;
-        }
-
-        for id in self.items.iter() {
-            let entity = map.get_entity(id);
-            if entity.bounding_box().intersects(&bounds) {
-                if predicate(bounds, entity) {
-                    collector.push(entity);
-                }
-            }
-        }
-
-        if !self.is_leaf() {
-            let quadrants = self.quadrants.as_ref().unwrap();
-            for quad in quadrants.iter() {
-                quad.query_within_bounds(bounds, map, collector, predicate);
+        if let Some(ref quadrants) = self.quadrants {
+            for quad in quadrants {
+                quad.inner_query(query_type, map, collector, predicate);
             }
         }
     }
@@ -272,7 +216,7 @@ impl QuadTreeNode {
     {
         let (entity, ref mut path) = map.get_entity_path_mut(id).unwrap();
 
-        if !self.boundary.contains(&entity.bounding_box()) {
+        if !self.boundary.contains(entity.bounds()) {
             return false;
         }
 
@@ -316,21 +260,24 @@ impl QuadTreeNode {
     }
 
     fn subdivide(&mut self) {
-        let center = (self.boundary.min + self.boundary.max).div(2.);
-        let (min, max) = (self.boundary.max, self.boundary.min);
+        let Geometry::Rect { center, size } = self.boundary else {
+            panic!("Expected boundary geometry to be Rect")
+        };
 
-        let ne = Bounds2D::new(center, self.boundary.max);
-        let nw = Bounds2D::new((min.x(), center.y()).into(), (center.x(), max.y()).into());
-        let se = Bounds2D::new((center.x(), min.y()).into(), (max.x(), center.y()).into());
-        let sw = Bounds2D::new(self.boundary.min, center);
+        let (min, max) = Geometry::rect_min_max(center, size);
+
+        let ne = Geometry::rect_from_min_max(center, max);
+        let nw = Geometry::rect_from_min_max((min.0, center.1), (center.0, max.1));
+        let se = Geometry::rect_from_min_max((center.0, min.1), (max.0, center.1));
+        let sw = Geometry::rect_from_min_max(min, center);
 
         let new_depth = self.depth + 1;
 
         self.quadrants = Some([
-            Box::new(QuadTreeNode::with_bounds(ne, self.capacity, new_depth)),
-            Box::new(QuadTreeNode::with_bounds(nw, self.capacity, new_depth)),
-            Box::new(QuadTreeNode::with_bounds(se, self.capacity, new_depth)),
-            Box::new(QuadTreeNode::with_bounds(sw, self.capacity, new_depth)),
+            Box::new(QuadTreeNode::with_geometry(ne, self.capacity, new_depth)),
+            Box::new(QuadTreeNode::with_geometry(nw, self.capacity, new_depth)),
+            Box::new(QuadTreeNode::with_geometry(se, self.capacity, new_depth)),
+            Box::new(QuadTreeNode::with_geometry(sw, self.capacity, new_depth)),
         ])
     }
 
@@ -342,6 +289,37 @@ impl QuadTreeNode {
                 quad.drain();
             }
         }
+    }
+}
+
+pub struct Entities<'t, E>
+where
+    E: IsEntity,
+{
+    map: &'t EntityMap<E>,
+    ids: Vec<EntityID>,
+}
+
+impl<'t, E> Entities<'t, E>
+where
+    E: IsEntity,
+{
+    fn new(map: &'t EntityMap<E>, ids: Vec<EntityID>) -> Self {
+        Self { map, ids }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+}
+
+impl<'t, E: IsEntity> Iterator for Entities<'t, E> {
+    type Item = &'t E;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(id) = self.ids.pop() {
+            return Some(self.map.get_entity(&id));
+        }
+        None
     }
 }
 
@@ -397,7 +375,7 @@ impl<'a> Iterator for Levels<'a> {
 }
 
 #[derive(Debug)]
-pub struct NodeInfo<'a>(LevelCount, &'a Bounds2D, &'a [EntityID]);
+pub struct NodeInfo<'a>(LevelCount, &'a Geometry, &'a [EntityID]);
 
 impl<'a> From<&'a QuadTreeNode> for NodeInfo<'a> {
     fn from(value: &'a QuadTreeNode) -> Self {
@@ -410,7 +388,7 @@ impl<'a> NodeInfo<'a> {
         self.0
     }
 
-    pub fn bounding_box(&self) -> &Bounds2D {
+    pub fn bounding_box(&self) -> &Geometry {
         self.1
     }
 
