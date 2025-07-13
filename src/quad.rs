@@ -1,7 +1,10 @@
 use core::panic;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
-use crate::{codec::Base4Int, ensure, EntityID, Geometry, IsEntity, SpatialError};
+use crate::{EntityID, Geometry, IsEntity, SpatialError, codec::Base4Int, ensure};
 
 const MAX_QUADS: usize = 4;
 type Quadrant = Box<QuadTreeNode>;
@@ -11,32 +14,45 @@ type NodeIndex = u8;
 
 pub struct EntityMap<E: IsEntity>(HashMap<EntityID, (E, LeafPath)>);
 
+impl<E: IsEntity> Deref for EntityMap<E> {
+    type Target = HashMap<EntityID, (E, LeafPath)>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<E: IsEntity> DerefMut for EntityMap<E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl<E: IsEntity> EntityMap<E> {
     pub fn new_with_capacity(cap: usize) -> Self {
         Self(HashMap::with_capacity(cap))
     }
 
     pub fn insert_entity(&mut self, id: EntityID, entity: E, path: LeafPath) {
-        let _ = self.0.insert(id, (entity, path));
+        let _ = self.insert(id, (entity, path));
     }
 
     pub fn get_entity(&self, id: &EntityID) -> &E {
-        &self.0.get(id).unwrap().0
+        &self.get(id).unwrap().0
     }
 
     pub fn get_path(&self, id: EntityID) -> Option<Vec<NodeIndex>> {
-        if let Some((_, p)) = self.0.get(&id) {
+        if let Some((_, p)) = self.get(&id) {
             return Some(p.peek_all());
         }
         None
     }
 
     pub fn get_entity_path_mut(&mut self, id: EntityID) -> Option<&mut (E, LeafPath)> {
-        self.0.get_mut(&id)
+        self.get_mut(&id)
     }
 
-    pub fn drain(&mut self) -> Vec<E> {
-        self.0.drain().map(|(_, (e, _))| e).collect()
+    pub fn drain_map(&mut self) -> Vec<E> {
+        self.drain().map(|(_, (e, _))| e).collect()
     }
 }
 
@@ -91,7 +107,7 @@ impl<E: IsEntity> QuadTree<E> {
     }
 
     pub fn clear(&mut self) -> Vec<E> {
-        let out = self.map.drain();
+        let out = self.map.drain_map();
         self.root.drain();
 
         let boundary = self.root.boundary;
@@ -214,7 +230,7 @@ impl QuadTreeNode {
     where
         E: IsEntity,
     {
-        let (entity, ref mut path) = map.get_entity_path_mut(id).unwrap();
+        let (entity, path) = map.get_entity_path_mut(id).unwrap();
 
         if !self.boundary.contains(entity.bounds()) {
             return false;

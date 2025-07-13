@@ -1,13 +1,13 @@
 use std::ops::{Add, Sub};
-
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
 pub use quad::QuadTree;
 pub use traits::Float;
 
-mod codec;
 pub mod hashgrid;
+mod codec;
 mod quad;
 mod traits;
+mod types;
 
 mod tests;
 
