@@ -1,13 +1,18 @@
-use std::ops::{Add, Sub};
 pub use hashgrid::{Boundary, DataIndex, HashGrid, HashIndex};
 pub use quad::QuadTree;
+use std::ops::{Add, Sub};
 pub use traits::Float;
 
-pub mod hashgrid;
 mod codec;
+mod grid;
+pub mod hashgrid;
+mod object;
+mod partition;
 mod quad;
 mod traits;
 mod types;
+mod manager;
+mod relevance;
 
 mod tests;
 
@@ -55,7 +60,7 @@ impl Geometry {
         }
     }
 
-    pub fn rect_from_min_max<T>(min: (T,T), max: (T,T)) -> Self 
+    pub fn rect_from_min_max<T>(min: (T, T), max: (T, T)) -> Self
     where
         T: Into<f64> + Copy,
     {
@@ -155,7 +160,9 @@ impl Geometry {
                 Geometry::disctance_squared((cx, cy), rc) <= r * r
             }
             _ => {
-                panic!("Geometric-Types only supports intersection between Bounds and radius combinations")
+                panic!(
+                    "Geometric-Types only supports intersection between Bounds and radius combinations"
+                )
             }
         }
     }
@@ -173,13 +180,20 @@ impl Geometry {
                 let (min, max) = Geometry::rect_min_max(center, size);
 
                 x >= min.0 && y >= min.1 && x <= max.0 && y <= max.1
-            },
+            }
             (Radius { radius, center }, Point { x, y }) => {
                 Geometry::disctance_squared(center, (x, y)) <= radius * radius
-            },
-            (Radius { radius: r1, center: c1 }, Radius { radius:r2, center:c2 }) => {
-                Geometry::disctance_squared(c1, c2) <= (r1 - r2).powi(2) && r1 > r2
             }
+            (
+                Radius {
+                    radius: r1,
+                    center: c1,
+                },
+                Radius {
+                    radius: r2,
+                    center: c2,
+                },
+            ) => Geometry::disctance_squared(c1, c2) <= (r1 - r2).powi(2) && r1 > r2,
             (
                 Rect {
                     center: c1,
@@ -194,7 +208,7 @@ impl Geometry {
                 let (min_2, max_2) = Geometry::rect_min_max(c2, s2);
 
                 min_1.0 <= min_2.0 && min_1.1 <= min_2.1 && max_1.0 >= max_2.0 && max_1.1 >= max_2.1
-            },
+            }
             (
                 Rect { center: cb, size },
                 Radius {
@@ -204,7 +218,7 @@ impl Geometry {
             ) => {
                 let (min, max) = Geometry::rect_min_max(cb, size);
                 c.0 - r >= min.0 && c.0 + r <= max.0 && c.1 - r >= min.1 && c.1 + r <= max.1
-            },
+            }
             (
                 Radius {
                     radius: r,
@@ -218,10 +232,11 @@ impl Geometry {
                     && Geometry::disctance_squared(c, b_corners[TOP_LEFT]) <= r * r
                     && Geometry::disctance_squared(c, b_corners[BOTTOM_RIGHT]) <= r * r
                     && Geometry::disctance_squared(c, b_corners[BOTTOM_LEFT]) <= r * r
-            },
-            
-            _ => panic!("Geometric-Types only supports containment between Bounds-radius, radius-Bounds, Bounds-Point, Radius-Point, Bounds-Bounds, Radius-Radius")
-            
+            }
+
+            _ => panic!(
+                "Geometric-Types only supports containment between Bounds-radius, radius-Bounds, Bounds-Point, Radius-Point, Bounds-Bounds, Radius-Radius"
+            ),
         }
     }
 }
@@ -255,7 +270,6 @@ impl Geometry {
         ]
     }
 }
-
 
 pub type EntityID = u64;
 

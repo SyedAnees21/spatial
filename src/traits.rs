@@ -230,7 +230,15 @@ impl_to_primitive!(f32, f64);
 /// logical functionalities to be used in generics in-place of core types `f32`/`f64`.
 /// 
 /// This trait requires `Primitive`, `ToPrimitive` and `FromPrimitive` trait bounds. 
-pub trait Float: Primitive + ToPrimitive<Input = Self> + FromPrimitive<Output = Self> {
+pub trait Float: Primitive + ToPrimitive<Input = Self> + FromPrimitive<Output = Self> + Copy
+    + 'static
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + PartialOrd
+    + Sized
+{
     // Associative constans exposure
 
     /// Smallest finite value representable by the
